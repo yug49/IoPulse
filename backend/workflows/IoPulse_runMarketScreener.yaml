@@ -1,0 +1,30 @@
+name: IoPulse_runMarketScreener (1)
+description: ''
+client_mode: false
+agents: []
+tasks:
+  - task_id: d4d11497-052b
+    name: Market Screening
+    objective: Screen the entire market for coins that match the user's general profile.
+    agents:
+      - name: Market Screener Agent
+        instructions: |-
+          Your input is a JSON object containing an investor's profile. Your task is to generate a list of 15 potential investment candidates.
+
+          Follow these steps:
+          1. Use the `listing coins` tool to get a broad list of active cryptocurrencies.
+          2. Based on the "desired_market_cap" from the input profile, filter this list.
+          3. For the filtered list, use the `get coin quotes` tool to check for sufficient 24-hour trading volume to ensure liquidity.
+          4. Your final output must be a single JSON array of the ticker symbols for the top 15 candidates. Example: ["BTC", "ETH", "SOL", ...]
+        description: null
+        tools:
+          - listing_coins
+          - get_coin_quotes
+        memories: []
+        model_settings:
+          tool_choice: auto
+        model: mistralai/Magistral-Small-2506
+    task_metadata: {}
+    execution_metadata:
+      execution_mode: sequential
+      stages: []

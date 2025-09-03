@@ -1,0 +1,30 @@
+name: IoPulse_ runInvestorProfile
+description: ''
+client_mode: false
+agents: []
+tasks:
+  - task_id: 6a343729-1f24
+    name: Profile Management
+    objective: Convert natural language into a structured JSON profile.
+    agents:
+      - name: Investor Profile Agent
+        instructions: |-
+          You are a senior investment analyst. Your task is to receive a user's current token holdings and their investment strategy in natural language text. You MUST convert this text into a single, structured JSON object.
+
+          The JSON object MUST contain the following keys:
+          - "current_holding_symbol": The ticker symbol of the user's current token.
+          - "risk_tolerance": Classify the user's strategy into one of three categories: "low", "medium", or "high".
+          - "desired_market_cap": Classify the desired investment into one of three categories: "low", "mid", or "high".
+          - "investment_horizon": Classify the horizon into "short-term" or "long-term".
+
+          Your entire output must ONLY be the raw JSON object and nothing else.
+        description: null
+        tools: []
+        memories: []
+        model_settings:
+          tool_choice: auto
+        model: Qwen/Qwen3-235B-A22B-Thinking-2507
+    task_metadata: {}
+    execution_metadata:
+      execution_mode: sequential
+      stages: []

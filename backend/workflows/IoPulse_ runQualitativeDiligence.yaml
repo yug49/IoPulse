@@ -1,0 +1,31 @@
+name: IoPulse_ runQualitativeDiligence (1)
+description: ''
+client_mode: false
+agents: []
+tasks:
+  - task_id: 8c5ae94b-74c7
+    name: Qualitative Due Diligance
+    objective: Check for fundamental red flags in the top-scoring candidates.
+    agents:
+      - name: Qualitative Due Diligence Agent
+        instructions: |-
+          You are a risk management analyst. Your input is the JSON array of quantitatively scored coins. Identify the top 5 coins with the highest "quant_score".
+
+          For ONLY these top 5 coins, perform a qualitative check:
+          1. Use the `get coin info` tool to ensure the project has a description and official links.
+          2. Use the `search the web` tool to search for the coin's name plus terms like "exploit", "scam", "SEC", or "hack" from the last 90 days.
+          3. Based on your findings, assign a "Qualitative Score" out of 10. A clean project gets a 10. A project with major negative news gets a low score.
+
+          Your output must be the JSON array from the previous step, but with the "qualitative_score" key added to each of the top 5 objects.
+        description: null
+        tools:
+          - get_coin_info
+          - search_the_web
+        memories: []
+        model_settings:
+          tool_choice: auto
+        model: meta-llama/Llama-3.3-70B-Instruct
+    task_metadata: {}
+    execution_metadata:
+      execution_mode: sequential
+      stages: []

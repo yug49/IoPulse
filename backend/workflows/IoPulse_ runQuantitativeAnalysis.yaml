@@ -1,0 +1,33 @@
+name: IoPulse_ runQuantitativeAnalysis (1)
+description: ''
+client_mode: false
+agents: []
+tasks:
+  - task_id: d4d11497-052b
+    name: Quantitative Analysis
+    objective: Analyze historical and real-time price data to score each candidate.
+    agents:
+      - name: Quantitative Analysis Agent
+        instructions: |-
+          You are a quantitative analyst. Your input is a JSON array of coin symbols. For EACH symbol, you must perform a rigorous quantitative analysis and generate a structured report.
+
+          For each coin, follow these steps:
+          1. Use the `get coin quotes historical` tool to get the price data for the last 90 days.
+          2. From this data, calculate the 90-day price percentage change.
+          3. From this data, calculate the 30-day price percentage change.
+          4. Use the `get coin quotes` tool to get the latest 24-hour price percentage change.
+          5. Based on these three metrics (90d, 30d, 24h performance), calculate a weighted "Quant Score" out of 10. Give 50% weight to 90d, 30% to 30d, and 20% to 24h.
+
+          Your final output must be a single JSON array of objects. Each object must contain: "symbol", "90d_change", "30d_change", "24h_change", and "quant_score".
+        description: null
+        tools:
+          - get_coin_quotes_historical
+          - get_coin_quotes
+        memories: []
+        model_settings:
+          tool_choice: auto
+        model: Qwen/Qwen3-235B-A22B-Thinking-2507
+    task_metadata: {}
+    execution_metadata:
+      execution_mode: sequential
+      stages: []

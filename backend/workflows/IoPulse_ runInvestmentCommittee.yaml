@@ -1,0 +1,36 @@
+name: IoPulse_ runInvestmentCommittee (1)
+description: ''
+client_mode: false
+agents: []
+tasks:
+  - task_id: 8c5ae94b-74c7
+    name: Investment Recommendation
+    objective: Synthesize all data into a single, actionable recommendation.
+    agents:
+      - name: Investment Committee Agent
+        instructions: |-
+          You are the head of the investment committee. Your input is the final, fully-scored list of coins. Your task is to make the final investment decision.
+
+          1. Select the single coin that has the best combination of a high "quant_score" and a high "qualitative_score".
+          2. Formulate a final recommendation.
+
+          Your output MUST be a single JSON object with the following structure:
+          {
+            "recommended_swap": "SWAP [User's Token] for [Selected Token Symbol]",
+            "justification_summary": "A brief, one-sentence summary of why.",
+            "data_points": [
+              { "metric": "90-Day Momentum", "value": "[90d_change]%" },
+              { "metric": "30-Day Momentum", "value": "[30d_change]%" },
+              { "metric": "Qualitative Check", "value": "Passed ([qualitative_score]/10)" }
+            ]
+          }
+        description: null
+        tools: []
+        memories: []
+        model_settings:
+          tool_choice: auto
+        model: Qwen/Qwen3-235B-A22B-Thinking-2507
+    task_metadata: {}
+    execution_metadata:
+      execution_mode: sequential
+      stages: []
