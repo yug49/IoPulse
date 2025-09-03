@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { aiRecommendationAPI } from "../services/api";
 import {
     ArrowLeft,
     Play,
@@ -14,37 +13,52 @@ import {
     Zap,
 } from "lucide-react";
 
-const StrategyDetailView = ({ strategy, onBack, onRequestRecommendation }) => {
+const API_BASE_URL = "http://localhost:5001";
+
+const StrategyDetailView = ({
+    strategy,
+    onBack,
+    onRequestRecommendation,
+    addNotification,
+}) => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState(null);
     const [processSteps, setProcessSteps] = useState([
         {
             id: 1,
-            name: "Investment Committee",
+            name: "Investor Profile Agent",
             status: "pending",
             description:
-                "Initial strategy review and current holdings analysis",
+                "Analyzes strategy and converts to structured investment profile",
             timestamp: null,
         },
         {
             id: 2,
-            name: "Quantitative Analysis",
+            name: "Market Screener Agent",
             status: "pending",
-            description: "Mathematical models and financial metrics evaluation",
+            description:
+                "Screens market for investment candidates based on profile",
             timestamp: null,
         },
         {
             id: 3,
-            name: "Qualitative Due Diligence",
+            name: "Quantitative Analysis Agent",
             status: "pending",
-            description: "Fundamental analysis and market research",
+            description: "Mathematical models and quantitative scoring",
             timestamp: null,
         },
         {
             id: 4,
-            name: "Risk Assessment",
+            name: "Qualitative Due Diligence Agent",
             status: "pending",
-            description: "Risk evaluation and portfolio impact analysis",
+            description: "Fundamental analysis and risk assessment",
+            timestamp: null,
+        },
+        {
+            id: 5,
+            name: "Investment Committee Agent",
+            status: "pending",
+            description: "Final investment decision and recommendation",
             timestamp: null,
         },
     ]);
@@ -52,28 +66,35 @@ const StrategyDetailView = ({ strategy, onBack, onRequestRecommendation }) => {
     const [agentOutputs, setAgentOutputs] = useState([
         {
             id: 1,
-            name: "Investment Committee Agent",
+            name: "Investor Profile Agent",
             status: "pending",
             output: "",
             timestamp: null,
         },
         {
             id: 2,
-            name: "Quantitative Analysis Agent",
+            name: "Market Screener Agent",
             status: "pending",
             output: "",
             timestamp: null,
         },
         {
             id: 3,
-            name: "Qualitative Due Diligence Agent",
+            name: "Quantitative Analysis Agent",
             status: "pending",
             output: "",
             timestamp: null,
         },
         {
             id: 4,
-            name: "Risk Assessment Agent",
+            name: "Qualitative Due Diligence Agent",
+            status: "pending",
+            output: "",
+            timestamp: null,
+        },
+        {
+            id: 5,
+            name: "Investment Committee Agent",
             status: "pending",
             output: "",
             timestamp: null,
@@ -87,97 +108,138 @@ const StrategyDetailView = ({ strategy, onBack, onRequestRecommendation }) => {
         setFinalRecommendation(null);
         setError(null);
 
+        // Reset all agents to pending
+        setProcessSteps((prev) =>
+            prev.map((step) => ({
+                ...step,
+                status: "pending",
+            }))
+        );
+
+        setAgentOutputs((prev) =>
+            prev.map((agent) => ({
+                ...agent,
+                status: "pending",
+                output: "",
+                timestamp: null,
+            }))
+        );
+
         try {
-            // Start the process steps animation
-            for (let i = 0; i < processSteps.length; i++) {
-                setTimeout(() => {
-                    // Start processing step
-                    setProcessSteps((prev) =>
-                        prev.map((step, index) => {
-                            if (index === i) {
-                                return {
-                                    ...step,
-                                    status: "processing",
-                                    timestamp: new Date().toISOString(),
-                                };
-                            }
-                            return step;
-                        })
-                    );
-
-                    // Start agent processing
-                    setAgentOutputs((prev) =>
-                        prev.map((agent, index) => {
-                            if (index === i) {
-                                return {
-                                    ...agent,
-                                    status: "processing",
-                                    timestamp: new Date().toISOString(),
-                                };
-                            }
-                            return agent;
-                        })
-                    );
-                }, i * 1000);
-            }
-
-            // Call the actual AI recommendation API - use strategy._id instead of strategy.id
-            console.log(
-                "Requesting AI recommendation for strategy:",
-                strategy._id || strategy.id
-            );
-            const result = await aiRecommendationAPI.requestRecommendation(
-                strategy._id || strategy.id
+            // Create EventSource for real-time updates with token in query params
+            const token = localStorage.getItem("token");
+            const eventSource = new EventSource(
+                `${API_BASE_URL}/api/ai-recommendations/${
+                    strategy._id || strategy.id
+                }/request-stream?token=${encodeURIComponent(token)}`
             );
 
-            console.log("AI Recommendation Result:", result);
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
 
-            // Process the real results from the backend
-            if (result && result.success) {
-                // Extract data from the backend response structure
-                const analysisData = result.data?.analysisData;
-                const finalRec = analysisData?.recommendation;
+                switch (data.type) {
+                    case "init":
+                        console.log("Workflow initialized:", data.message);
+                        break;
 
-                if (finalRec && analysisData) {
-                    // Update all steps to completed
-                    setProcessSteps((prev) =>
-                        prev.map((step) => ({
-                            ...step,
-                            status: "completed",
-                        }))
-                    );
+                    case "agent_start":
+                        console.log(`Agent starting: ${data.agent}`);
+                        // Find and update the specific agent that's starting
+                        setProcessSteps((prev) =>
+                            prev.map((step, index) => {
+                                if (step.name === data.agent) {
+                                    return {
+                                        ...step,
+                                        status: "processing",
+                                        timestamp: new Date().toISOString(),
+                                    };
+                                }
+                                return step;
+                            })
+                        );
 
-                    // Create agent outputs based on actual workflow data
-                    const realAgentOutputs = [
-                        {
-                            name: "Investment Committee Agent",
-                            output: `🏛️ Investment Committee Analysis:
+                        setAgentOutputs((prev) =>
+                            prev.map((agent, index) => {
+                                if (agent.name === data.agent) {
+                                    return {
+                                        ...agent,
+                                        status: "processing",
+                                        output: data.message,
+                                        timestamp: new Date().toISOString(),
+                                    };
+                                }
+                                return agent;
+                            })
+                        );
+                        break;
 
-📊 Final Recommendation: ${finalRec.recommendation}
+                    case "agent_complete":
+                        console.log(`Agent completed: ${data.agent}`);
+                        // Update the completed agent
+                        setProcessSteps((prev) =>
+                            prev.map((step, index) => {
+                                if (step.name === data.agent) {
+                                    return {
+                                        ...step,
+                                        status: "completed",
+                                    };
+                                }
+                                return step;
+                            })
+                        );
 
-💡 Investment Decision Summary:
-${finalRec.explanation}
+                        setAgentOutputs((prev) =>
+                            prev.map((agent, index) => {
+                                if (agent.name === data.agent) {
+                                    // Create detailed output based on agent type and actual data
+                                    let detailedOutput = `✅ ${data.message}\n\nExecution time: ${data.time}ms`;
 
-⏱️ Analysis completed in ${analysisData.totalTime}ms using ${
-                                analysisData.agentsUsed?.length || 5
-                            } AI agents.
+                                    // Add specific output based on agent type
+                                    if (data.output) {
+                                        switch (data.agent) {
+                                            case "Investor Profile Agent":
+                                                if (
+                                                    data.output
+                                                        .risk_tolerance &&
+                                                    data.output
+                                                        .investment_timeframe
+                                                ) {
+                                                    detailedOutput += `\n\n🎯 Profile Created:
+• Risk Tolerance: ${data.output.risk_tolerance}
+• Investment Timeframe: ${data.output.investment_timeframe}
+• Focus Area: ${data.output.focus_area || "General Investment"}
+• Investment Goal: ${data.output.investment_goal || "Growth"}`;
+                                                }
+                                                break;
 
-🎯 Strategic Assessment:
-• Current market conditions evaluated
-• Risk tolerance alignment verified
-• Portfolio diversification considered
-• Time horizon compatibility confirmed`,
-                        },
-                        {
-                            name: "Quantitative Analysis Agent",
-                            output: analysisData.quantitativeAnalysis
-                                ? `🧮 Quantitative Analysis Results:
+                                            case "Market Screener Agent":
+                                                if (
+                                                    Array.isArray(data.output)
+                                                ) {
+                                                    detailedOutput += `\n\n🔍 Market Screening Results:
+• Total Candidates Found: ${data.output.length}
+• Top Candidates: ${data.output.slice(0, 5).join(", ")}
+• Screening Criteria: Risk-adjusted performance`;
+                                                }
+                                                break;
 
-📊 Candidates Analyzed: ${analysisData.candidates?.length || "Multiple"}
-
-🔍 Top Performing Assets:
-${analysisData.quantitativeAnalysis
-    .slice(0, 5)
+                                            case "Quantitative Analysis Agent":
+                                                if (
+                                                    Array.isArray(data.output)
+                                                ) {
+                                                    const topCandidates =
+                                                        data.output
+                                                            .filter(
+                                                                (coin) =>
+                                                                    coin.quant_score !==
+                                                                    undefined
+                                                            )
+                                                            .slice(0, 3);
+                                                    if (
+                                                        topCandidates.length > 0
+                                                    ) {
+                                                        detailedOutput += `\n\n📊 Quantitative Analysis:
+${topCandidates
     .map(
         (coin, idx) =>
             `${idx + 1}. ${coin.symbol}: Score ${coin.quant_score}/10 (24h: ${
@@ -186,181 +248,191 @@ ${analysisData.quantitativeAnalysis
     )
     .join("\n")}
 
-💹 Risk Assessment:
-• Historical volatility patterns analyzed
-• Market correlation factors evaluated
-• Liquidity and volume metrics reviewed
-• Technical indicators processed`
-                                : "Quantitative analysis completed with comprehensive metrics evaluation.",
-                        },
-                        {
-                            name: "Qualitative Due Diligence Agent",
-                            output: analysisData.qualitativeAnalysis
-                                ? `📋 Qualitative Due Diligence Review:
+📈 Analysis Methods:
+• Historical performance metrics
+• Volatility assessment
+• Risk-adjusted returns`;
+                                                    }
+                                                }
+                                                break;
 
-🔍 Fundamental Analysis Completed:
-• Market research and sentiment analysis
-• Regulatory environment assessment
-• Technology and project fundamentals
-• Community and ecosystem evaluation
-
-📊 Due Diligence Summary:
-${analysisData.qualitativeAnalysis
-    .slice(0, 3)
+                                            case "Qualitative Due Diligence Agent":
+                                                if (
+                                                    Array.isArray(data.output)
+                                                ) {
+                                                    const qualCandidates =
+                                                        data.output
+                                                            .filter(
+                                                                (coin) =>
+                                                                    coin.qualitative_score !==
+                                                                    undefined
+                                                            )
+                                                            .slice(0, 3);
+                                                    if (
+                                                        qualCandidates.length >
+                                                        0
+                                                    ) {
+                                                        detailedOutput += `\n\n🔍 Due Diligence Assessment:
+${qualCandidates
     .map(
         (coin, idx) =>
-            `${idx + 1}. ${coin.symbol}: Risk Score ${coin.risk_score}/10`
+            `${idx + 1}. ${coin.symbol}: Qual Score ${
+                coin.qualitative_score
+            }/10`
     )
     .join("\n")}
 
-💡 Strategic Insights:
-• Long-term growth prospects evaluated
-• Competitive positioning analyzed
-• Market adoption trends reviewed`
-                                : "Qualitative due diligence completed with thorough fundamental analysis.",
-                        },
-                        {
-                            name: "Risk Assessment Agent",
-                            output: `⚠️ Risk Assessment Report:
+🛡️ Assessment Areas:
+• Fundamental analysis
+• Risk evaluation
+• Market sentiment
+• Technology assessment`;
+                                                    }
+                                                }
+                                                break;
+                                        }
+                                    }
 
-🎯 Overall Risk Profile: Moderate
+                                    return {
+                                        ...agent,
+                                        status: "completed",
+                                        output: detailedOutput,
+                                        timestamp: new Date().toISOString(),
+                                    };
+                                }
+                                return agent;
+                            })
+                        );
+                        break;
 
-🛡️ Risk Analysis Completed:
-• Portfolio impact assessment
-• Correlation with existing holdings
-• Volatility and drawdown analysis
-• Market timing considerations
+                    case "complete":
+                        console.log("Workflow completed:", data);
+                        // Handle final completion
+                        const finalRec = data.data.recommendation;
 
-📊 Risk Mitigation Strategies:
-• Position sizing recommendations
-• Stop-loss level calculations
-• Diversification impact evaluated
-• Time-based risk factors assessed
+                        // Update final recommendation
+                        setFinalRecommendation({
+                            action: finalRec.recommendation
+                                .toLowerCase()
+                                .includes("don't swap")
+                                ? "HOLD"
+                                : finalRec.recommendation
+                                      .toLowerCase()
+                                      .includes("swap")
+                                ? "SWAP"
+                                : "HOLD",
+                            confidence: 85,
+                            summary: finalRec.explanation,
+                            timestamp: new Date().toISOString(),
+                            executionTime: data.data.executionTime,
+                            agentsUsed: data.data.agentsExecuted,
+                        });
 
-✅ Risk Tolerance Alignment: Confirmed`,
-                        },
-                    ];
+                        // Update the final agent with real output
+                        setAgentOutputs((prev) =>
+                            prev.map((agent) => {
+                                if (
+                                    agent.name === "Investment Committee Agent"
+                                ) {
+                                    return {
+                                        ...agent,
+                                        status: "completed",
+                                        output: `🏛️ Investment Committee Analysis:
 
-                    setAgentOutputs((prev) =>
-                        prev.map((agent, index) => ({
-                            ...agent,
-                            status: "completed",
-                            output:
-                                realAgentOutputs[index]?.output ||
-                                "Analysis completed successfully.",
-                        }))
-                    );
+📊 Final Recommendation: ${finalRec.recommendation}
 
-                    // Set the final recommendation with real data
-                    setFinalRecommendation({
-                        action: finalRec.recommendation
-                            .toLowerCase()
-                            .includes("don't swap")
-                            ? "HOLD"
-                            : finalRec.recommendation
-                                  .toLowerCase()
-                                  .includes("swap")
-                            ? "SWAP"
-                            : "HOLD",
-                        confidence: 85, // Could extract from analysis if available
-                        summary: finalRec.explanation,
-                        timestamp: new Date().toISOString(),
-                        executionTime: analysisData.totalTime,
-                        agentsUsed: analysisData.agentsUsed?.length || 5,
-                    });
-                } else {
-                    throw new Error(
-                        "Invalid response structure from AI workflow"
-                    );
+💡 Investment Decision Summary:
+${finalRec.explanation}
+
+⏱️ Analysis completed in ${data.data.executionTime}ms using ${data.data.agentsExecuted} AI agents.`,
+                                    };
+                                }
+                                return agent;
+                            })
+                        );
+
+                        addNotification(
+                            `New recommendation generated for ${strategy.name}`,
+                            "success"
+                        );
+                        break;
+
+                    case "error":
+                        console.error("Workflow error:", data);
+                        setError(data.message);
+
+                        // Mark all processing agents as failed
+                        setProcessSteps((prev) =>
+                            prev.map((step) => ({
+                                ...step,
+                                status:
+                                    step.status === "processing"
+                                        ? "error"
+                                        : step.status,
+                            }))
+                        );
+
+                        setAgentOutputs((prev) =>
+                            prev.map((agent) => ({
+                                ...agent,
+                                status:
+                                    agent.status === "processing"
+                                        ? "error"
+                                        : agent.status,
+                                output:
+                                    agent.status === "processing"
+                                        ? `❌ ${data.message}`
+                                        : agent.output,
+                            }))
+                        );
+                        break;
+
+                    case "end":
+                        console.log("Workflow stream ended");
+                        eventSource.close();
+                        setIsProcessing(false);
+                        break;
+
+                    default:
+                        console.log("Unknown message type:", data.type);
+                        break;
                 }
-            } else {
-                throw new Error(
-                    result?.message ||
-                        "Failed to get recommendation from backend"
+            };
+
+            eventSource.onerror = (error) => {
+                console.error("EventSource error:", error);
+                eventSource.close();
+                setIsProcessing(false);
+                setError("Connection to server lost. Please try again.");
+
+                // Mark all processing agents as failed
+                setProcessSteps((prev) =>
+                    prev.map((step) => ({
+                        ...step,
+                        status:
+                            step.status === "processing"
+                                ? "connectivity_error"
+                                : step.status,
+                    }))
                 );
-            }
-        } catch (err) {
-            // Log the full error object for debugging
-            console.error("AI Recommendation Error:", err);
 
-            let errorMsg = "Failed to generate AI recommendation.";
-            let isConnectivityIssue = false;
-
-            if (err.response?.status) {
-                const errorData = err.response.data;
-
-                // Check for specific error types from backend
-                if (errorData?.errorType === "connectivity_error") {
-                    errorMsg =
-                        "🌐 Connectivity Issues\n\nUnable to connect to AI services. Please check your internet connection and try again.";
-                    isConnectivityIssue = true;
-                } else if (errorData?.errorType === "rate_limit_error") {
-                    errorMsg =
-                        "⏳ Service Temporarily Unavailable\n\nAI service is experiencing high demand. Please try again in a few minutes.";
-                    isConnectivityIssue = true;
-                } else if (errorData?.errorType === "auth_error") {
-                    errorMsg =
-                        "🔑 Authorization Error\n\nAI service authorization failed. Please contact support.";
-                } else if (errorData?.message) {
-                    errorMsg = errorData.message;
-                    isConnectivityIssue =
-                        errorData.errorType === "connectivity_error";
-                } else {
-                    // Standard HTTP error handling
-                    errorMsg += ` HTTP ${err.response.status}`;
-                    if (err.response.status === 401) {
-                        errorMsg +=
-                            " - Authentication failed. Please log in again.";
-                    } else if (err.response.status === 404) {
-                        errorMsg += " - Strategy not found or unauthorized.";
-                    } else if (err.response.status === 500) {
-                        errorMsg += " - Server error during AI analysis.";
-                        isConnectivityIssue = true;
-                    }
-                }
-            } else if (
-                err.code === "NETWORK_ERROR" ||
-                err.message?.includes("Network Error")
-            ) {
-                errorMsg =
-                    "🌐 Network Connection Failed\n\nUnable to reach the server. Please check your internet connection and try again.";
-                isConnectivityIssue = true;
-            } else if (err.message) {
-                errorMsg += `\nError: ${err.message}`;
-            }
-
-            setError(errorMsg);
-
-            // Mark all steps as error state with appropriate status
-            const errorStatus = isConnectivityIssue
-                ? "connectivity_error"
-                : "error";
-            setProcessSteps((prev) =>
-                prev.map((step) => ({
-                    ...step,
-                    status: errorStatus,
-                }))
-            );
-
-            setAgentOutputs((prev) =>
-                prev.map((agent) => ({
-                    ...agent,
-                    status: errorStatus,
-                    output: isConnectivityIssue
-                        ? `🌐 Connectivity Issue: Unable to connect to AI services. Please check your internet connection and try again.`
-                        : `❌ ${errorMsg}`,
-                }))
-            );
-
-            // If authentication error, delay redirect so user can see the error
-            if (err.response?.status === 401) {
-                setTimeout(() => {
-                    localStorage.removeItem("token");
-                    localStorage.removeItem("user");
-                    window.location.reload();
-                }, 4000);
-            }
-        } finally {
+                setAgentOutputs((prev) =>
+                    prev.map((agent) => ({
+                        ...agent,
+                        status:
+                            agent.status === "processing"
+                                ? "connectivity_error"
+                                : agent.status,
+                        output:
+                            agent.status === "processing"
+                                ? "🌐 Connection lost during processing"
+                                : agent.output,
+                    }))
+                );
+            };
+        } catch (error) {
+            console.error("Error setting up real-time connection:", error);
+            setError("Failed to connect to AI service");
             setIsProcessing(false);
         }
 

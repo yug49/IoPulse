@@ -74,6 +74,13 @@ const Dashboard = ({ user, onLogout }) => {
         // This will be implemented later when we add the working functionality
     };
 
+    // Simple notification handler for now
+    const addNotification = (message, type = "info") => {
+        console.log(`Notification [${type}]: ${message}`);
+        // In a real app, this would add to a notification state
+        // For now, just log it
+    };
+
     // Get all pending notifications from all strategies
     const getPendingNotifications = () => {
         const notifications = [];
@@ -104,6 +111,7 @@ const Dashboard = ({ user, onLogout }) => {
                 strategy={selectedStrategy}
                 onBack={handleBackToDashboard}
                 onRequestRecommendation={handleRequestRecommendation}
+                addNotification={addNotification}
             />
         );
     }

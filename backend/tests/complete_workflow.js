@@ -394,6 +394,302 @@ async function runWorkflowTests() {
     return results;
 }
 
+/**
+ * Complete IoPulse Workflow with real-time updates
+ * Same as runCompleteWorkflow but sends progress updates via callback
+ * @param {string} strategy - Investment strategy description
+ * @param {Object} previousRecommendation - Previous recommendation with timestamp (optional)
+ * @param {Function} updateCallback - Callback function to send real-time updates
+ * @returns {Object} - Complete workflow result
+ */
+async function runCompleteWorkflowWithUpdates(
+    strategy,
+    previousRecommendation = null,
+    updateCallback
+) {
+    console.log(
+        "🚀 Starting Complete IoPulse Multi-Agent Workflow with Real-time Updates..."
+    );
+    console.log("📋 Input Strategy:", JSON.stringify(strategy, null, 2));
+    if (previousRecommendation) {
+        console.log(
+            "📝 Previous Recommendation:",
+            JSON.stringify(previousRecommendation, null, 2)
+        );
+    }
+    console.log("━".repeat(80));
+
+    let currentWorkflowStep = 1;
+    const workflowResults = {
+        strategy: strategy,
+        profile: null,
+        candidates: null,
+        analysis: null,
+        finalAnalysis: null,
+        recommendation: null,
+        success: false,
+        totalTime: 0,
+        agentsUsed: [],
+    };
+
+    const workflowStart = Date.now();
+
+    // Extract user's current token for the entire workflow
+    const userToken = strategy.coin || "ETH";
+
+    try {
+        // Step 1: Investor Profile Agent
+        console.log(
+            `\n🎯 Step ${currentWorkflowStep}: Processing Investor Profile...`
+        );
+        updateCallback({
+            type: "agent_start",
+            agent: "Investor Profile Agent",
+            step: currentWorkflowStep,
+            message:
+                "Analyzing investment strategy and creating investor profile...",
+        });
+
+        const step1Start = Date.now();
+        const profileResult = await processInvestmentStrategy(strategy);
+        const step1Time = Date.now() - step1Start;
+
+        if (!profileResult.success) {
+            throw new Error(`Profile Agent failed: ${profileResult.error}`);
+        }
+
+        workflowResults.profile = profileResult.profile;
+        workflowResults.agentsUsed.push({
+            step: currentWorkflowStep++,
+            agent: "Investor Profile Agent",
+            success: true,
+            time: step1Time,
+            output: profileResult.profile,
+        });
+
+        updateCallback({
+            type: "agent_complete",
+            agent: "Investor Profile Agent",
+            step: currentWorkflowStep - 1,
+            output: profileResult.profile,
+            time: step1Time,
+            message: "Investor profile created successfully",
+        });
+
+        console.log("✅ Investor Profile Generated Successfully!");
+        console.log(`⏱️ Time: ${step1Time}ms`);
+
+        // Step 2: Market Screener Agent
+        console.log(
+            `\n🔍 Step ${currentWorkflowStep}: Processing Market Screening...`
+        );
+        updateCallback({
+            type: "agent_start",
+            agent: "Market Screener Agent",
+            step: currentWorkflowStep,
+            message: "Screening market for investment candidates...",
+        });
+
+        const step2Start = Date.now();
+        const screeningResult = await processMarketScreening(
+            profileResult.profile
+        );
+        const step2Time = Date.now() - step2Start;
+
+        if (!screeningResult.success) {
+            throw new Error(
+                `Market Screener Agent failed: ${screeningResult.error}`
+            );
+        }
+
+        workflowResults.candidates = screeningResult.candidates;
+        workflowResults.agentsUsed.push({
+            step: currentWorkflowStep++,
+            agent: "Market Screener Agent",
+            success: true,
+            time: step2Time,
+            toolCalls: screeningResult.toolCallsCount || 0,
+            output: screeningResult.candidates,
+        });
+
+        updateCallback({
+            type: "agent_complete",
+            agent: "Market Screener Agent",
+            step: currentWorkflowStep - 1,
+            output: screeningResult.candidates,
+            time: step2Time,
+            message: `Found ${screeningResult.candidates.length} investment candidates`,
+        });
+
+        console.log("✅ Market Screening Completed Successfully!");
+        console.log(`⏱️ Time: ${step2Time}ms`);
+
+        // Step 3: Quantitative Analysis Agent
+        console.log(
+            `\n📈 Step ${currentWorkflowStep}: Processing Quantitative Analysis...`
+        );
+        updateCallback({
+            type: "agent_start",
+            agent: "Quantitative Analysis Agent",
+            step: currentWorkflowStep,
+            message: "Performing quantitative analysis on candidates...",
+        });
+
+        const step3Start = Date.now();
+        const analysisResult = await processQuantitativeAnalysis(
+            screeningResult.candidates,
+            userToken
+        );
+        const step3Time = Date.now() - step3Start;
+
+        if (!analysisResult.success) {
+            throw new Error(
+                `Quantitative Analysis Agent failed: ${analysisResult.error}`
+            );
+        }
+
+        workflowResults.analysis = analysisResult.analysis;
+        workflowResults.agentsUsed.push({
+            step: currentWorkflowStep++,
+            agent: "Quantitative Analysis Agent",
+            success: true,
+            time: step3Time,
+            toolCalls: analysisResult.toolCallsCount || 0,
+            output: analysisResult.analysis,
+        });
+
+        updateCallback({
+            type: "agent_complete",
+            agent: "Quantitative Analysis Agent",
+            step: currentWorkflowStep - 1,
+            output: analysisResult.analysis,
+            time: step3Time,
+            message: "Quantitative analysis completed with scores and metrics",
+        });
+
+        console.log("✅ Quantitative Analysis Completed Successfully!");
+        console.log(`⏱️ Time: ${step3Time}ms`);
+
+        // Step 4: Qualitative Due Diligence Agent
+        console.log(
+            `\n🔍 Step ${currentWorkflowStep}: Processing Qualitative Due Diligence...`
+        );
+        updateCallback({
+            type: "agent_start",
+            agent: "Qualitative Due Diligence Agent",
+            step: currentWorkflowStep,
+            message: "Conducting qualitative due diligence review...",
+        });
+
+        const step4Start = Date.now();
+        const dueDiligenceResult = await processQualitativeDueDiligence(
+            analysisResult.analysis,
+            userToken
+        );
+        const step4Time = Date.now() - step4Start;
+
+        if (!dueDiligenceResult.success) {
+            throw new Error(
+                `Qualitative Due Diligence Agent failed: ${dueDiligenceResult.error}`
+            );
+        }
+
+        workflowResults.finalAnalysis = dueDiligenceResult.analysis;
+        workflowResults.agentsUsed.push({
+            step: currentWorkflowStep++,
+            agent: "Qualitative Due Diligence Agent",
+            success: true,
+            time: step4Time,
+            toolCalls: dueDiligenceResult.toolCallsCount || 0,
+            output: dueDiligenceResult.analysis,
+        });
+
+        updateCallback({
+            type: "agent_complete",
+            agent: "Qualitative Due Diligence Agent",
+            step: currentWorkflowStep - 1,
+            output: dueDiligenceResult.analysis,
+            time: step4Time,
+            message: "Qualitative due diligence assessment completed",
+        });
+
+        console.log("✅ Qualitative Due Diligence Completed Successfully!");
+        console.log(`⏱️ Time: ${step4Time}ms`);
+
+        // Step 5: Investment Committee Agent
+        console.log(
+            `\n🏛️ Step ${currentWorkflowStep}: Processing Investment Committee Decision...`
+        );
+        updateCallback({
+            type: "agent_start",
+            agent: "Investment Committee Agent",
+            step: currentWorkflowStep,
+            message: "Making final investment recommendation...",
+        });
+
+        const step5Start = Date.now();
+        const committeeResult = await processInvestmentCommittee(
+            dueDiligenceResult.analysis,
+            userToken,
+            previousRecommendation
+        );
+        const step5Time = Date.now() - step5Start;
+
+        if (!committeeResult.success) {
+            throw new Error(
+                `Investment Committee Agent failed: ${committeeResult.error}`
+            );
+        }
+
+        workflowResults.recommendation = committeeResult.recommendation;
+        workflowResults.agentsUsed.push({
+            step: currentWorkflowStep++,
+            agent: "Investment Committee Agent",
+            success: true,
+            time: step5Time,
+            output: committeeResult.recommendation,
+        });
+
+        updateCallback({
+            type: "agent_complete",
+            agent: "Investment Committee Agent",
+            step: currentWorkflowStep - 1,
+            output: committeeResult.recommendation,
+            time: step5Time,
+            message: "Final investment recommendation generated",
+        });
+
+        console.log("✅ Investment Committee Decision Completed Successfully!");
+        console.log(`⏱️ Time: ${step5Time}ms`);
+
+        // Workflow completed successfully
+        workflowResults.totalTime = Date.now() - workflowStart;
+        workflowResults.success = true;
+
+        console.log("\n🎉 Complete IoPulse Workflow Successful!");
+        console.log("━".repeat(80));
+        console.log(`⏱️ Total Workflow Time: ${workflowResults.totalTime}ms`);
+        console.log(`🤖 Agents Used: ${workflowResults.agentsUsed.length}`);
+
+        return workflowResults;
+    } catch (error) {
+        console.error("❌ Complete Workflow Failed!");
+        console.error("🚨 Error:", error.message);
+
+        updateCallback({
+            type: "agent_error",
+            message: error.message,
+            step: currentWorkflowStep,
+        });
+
+        workflowResults.totalTime = Date.now() - workflowStart;
+        workflowResults.success = false;
+        workflowResults.error = error.message;
+
+        return workflowResults;
+    }
+}
+
 // Main execution
 if (require.main === module) {
     runWorkflowTests().catch(console.error);
@@ -402,4 +698,5 @@ if (require.main === module) {
 module.exports = {
     runCompleteWorkflow,
     runWorkflowTests,
+    runCompleteWorkflowWithUpdates,
 };
