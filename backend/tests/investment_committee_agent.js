@@ -19,24 +19,30 @@ const MODEL_NAME = "Qwen/Qwen3-235B-A22B-Thinking-2507";
 // Agent instructions from YAML workflow
 const AGENT_INSTRUCTIONS = `You are the head of the investment committee. Your input is the final, fully-scored list of coins, the user's current token, and optionally their previous recommendation with timestamp.
 
+CRITICAL - RESPOND WITH ONLY JSON:
+- Your entire response must be ONLY the JSON object below
+- NO explanations, reasoning, or any other text
+- NO markdown formatting or code blocks
+- NO text before or after the JSON
+- Start your response with { and end with }
+
+ANALYSIS STEPS (internal thought only):
 1. Consider the user's current holding performance vs alternatives.
-2. If a previous recommendation exists, evaluate:
-   - How much time has passed since the recommendation
-   - Whether the original reasoning still holds
-   - If market conditions have changed significantly
-3. Select the single best action: either maintain current position (HOLD) or swap to a better alternative.
+2. If a previous recommendation exists, evaluate time elapsed and market changes.
+3. Select the single best action: either maintain current position or swap to a better alternative.
 4. For swaps, select the coin with the best combination of high "quant_score" and high "qualitative_score".
 
-Your output MUST be a single JSON object with the following structure:
+REQUIRED JSON FORMAT (your complete response):
 {
-  "recommended_swap": "HOLD [Current Token]" OR "SWAP [Current Token] for [Selected Token]",
-  "justification_summary": "A brief, one-sentence summary of why, considering previous recommendation if applicable.",
-  "data_points": [
-    { "metric": "90-Day Momentum", "value": "[90d_change]%" },
-    { "metric": "30-Day Momentum", "value": "[30d_change]%" },
-    { "metric": "Qualitative Check", "value": "Passed ([qualitative_score]/10)" }
-  ]
-}`;
+  "recommendation": "Swap [Current Token] for [Selected Token] and hold for [time period]" OR "Don't swap anything and hold [Current Token] for more [time period]",
+  "explanation": "Brief explanation of the decision"
+}
+
+RECOMMENDATION FORMAT RULES:
+- For swaps: "Swap ETH for RENDER and hold for 2-4 weeks"
+- For holds: "Don't swap anything and hold ETH for more 1-2 weeks"
+- Always include specific time periods (days/weeks/months)
+- Use exact format shown above`;
 
 /**
  * Process final analysis to make investment recommendation using Investment Committee Agent
@@ -149,7 +155,9 @@ Focus on coins with both quant_score and qualitative_score. Consider whether the
 
         // Extract final response
         const finalChoice = response.data.choices[0];
-        const agentResponse = finalChoice.message.content;
+        const agentResponse =
+            finalChoice.message.content ||
+            finalChoice.message.reasoning_content;
         const reasoningContent = finalChoice.message.reasoning_content;
 
         console.log("📋 Investment Committee Response:", agentResponse);
@@ -168,19 +176,25 @@ Focus on coins with both quant_score and qualitative_score. Consider whether the
                 const recommendationResult = JSON.parse(agentResponse.trim());
                 if (
                     recommendationResult &&
-                    recommendationResult.recommended_swap
+                    recommendationResult.recommendation
                 ) {
                     recommendation = recommendationResult;
                 }
             } catch (parseError) {
+                console.log(
+                    "⚠️ Failed to parse direct JSON, trying extraction..."
+                );
                 // If not direct JSON, look for JSON object in the text
                 const jsonMatch = agentResponse.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                     try {
-                        recommendation = JSON.parse(jsonMatch[0]);
+                        const extractedJson = JSON.parse(jsonMatch[0]);
+                        if (extractedJson && extractedJson.recommendation) {
+                            recommendation = extractedJson;
+                        }
                     } catch (matchError) {
                         console.log(
-                            "⚠️ Could not parse JSON from response, using simulated recommendation"
+                            "⚠️ Could not parse extracted JSON, using simulated recommendation"
                         );
                     }
                 } else {
@@ -259,19 +273,8 @@ function generateSimulatedRecommendation(
         );
 
         return {
-            recommended_swap: `SWAP ${userToken} for ${bestQuantCoin.symbol}`,
-            justification_summary: `${bestQuantCoin.symbol} has the highest quantitative score of ${bestQuantCoin.quant_score}/10 with strong performance metrics.`,
-            data_points: [
-                {
-                    metric: "90-Day Momentum",
-                    value: `${bestQuantCoin["90d_change"]}%`,
-                },
-                {
-                    metric: "30-Day Momentum",
-                    value: `${bestQuantCoin["30d_change"]}%`,
-                },
-                { metric: "Qualitative Check", value: "Not Available" },
-            ],
+            recommendation: `Swap ${userToken} for ${bestQuantCoin.symbol} and hold for 2-4 weeks`,
+            explanation: `${bestQuantCoin.symbol} has the highest quantitative score of ${bestQuantCoin.quant_score}/10 with strong performance metrics including ${bestQuantCoin["90d_change"]}% 90-day momentum.`,
         };
     }
 
@@ -342,23 +345,12 @@ function generateSimulatedRecommendation(
     });
 
     if (shouldHold) {
+        const holdTime = previousRecommendation
+            ? "more 1-2 weeks"
+            : "1-3 weeks";
         return {
-            recommended_swap: `HOLD ${userToken}`,
-            justification_summary: holdJustification,
-            data_points: [
-                {
-                    metric: "90-Day Momentum",
-                    value: `${userCurrentHoldingAnalysis["90d_change"]}%`,
-                },
-                {
-                    metric: "30-Day Momentum",
-                    value: `${userCurrentHoldingAnalysis["30d_change"]}%`,
-                },
-                {
-                    metric: "Qualitative Check",
-                    value: `Passed (${userCurrentHoldingAnalysis.qualitative_score}/10)`,
-                },
-            ],
+            recommendation: `Don't swap anything and hold ${userToken} for ${holdTime}`,
+            explanation: holdJustification,
         };
     }
 
@@ -387,17 +379,17 @@ function generateSimulatedRecommendation(
 
     justification += ".";
 
+    // Determine hold time based on performance strength
+    let holdTime = "2-4 weeks";
+    if (bestCoin["90d_change"] > 100) {
+        holdTime = "4-6 weeks"; // Strong performers get longer hold
+    } else if (bestCoin["90d_change"] < 20) {
+        holdTime = "1-2 weeks"; // Weaker performers get shorter hold
+    }
+
     return {
-        recommended_swap: `SWAP ${userToken} for ${bestCoin.symbol}`,
-        justification_summary: justification,
-        data_points: [
-            { metric: "90-Day Momentum", value: `${bestCoin["90d_change"]}%` },
-            { metric: "30-Day Momentum", value: `${bestCoin["30d_change"]}%` },
-            {
-                metric: "Qualitative Check",
-                value: `Passed (${bestCoin.qualitative_score}/10)`,
-            },
-        ],
+        recommendation: `Swap ${userToken} for ${bestCoin.symbol} and hold for ${holdTime}`,
+        explanation: justification,
     };
 }
 
@@ -526,15 +518,11 @@ async function runInvestmentCommitteeTests() {
             if (result.recommendation) {
                 console.log("🏆 Final Investment Recommendation:");
                 console.log(
-                    `   📈 Swap: ${result.recommendation.recommended_swap}`
+                    `   📈 Decision: ${result.recommendation.recommendation}`
                 );
                 console.log(
-                    `   💡 Justification: ${result.recommendation.justification_summary}`
+                    `   💡 Explanation: ${result.recommendation.explanation}`
                 );
-                console.log("   📊 Supporting Data:");
-                result.recommendation.data_points.forEach((point) => {
-                    console.log(`      • ${point.metric}: ${point.value}`);
-                });
             }
 
             if (result.fallbackMode) {

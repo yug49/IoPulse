@@ -176,4 +176,39 @@ export const strategyAPI = {
     },
 };
 
+// AI Recommendations API functions
+export const aiRecommendationAPI = {
+    // Request AI recommendation for a strategy
+    requestRecommendation: async (strategyId) => {
+        try {
+            const response = await api.post(
+                `/ai-recommendations/${strategyId}/request`
+            );
+            return response.data;
+        } catch (error) {
+            console.error("AI recommendation request error:", error);
+            if (error.response?.status === 401) {
+                throw new Error("Authentication failed - please log in again");
+            }
+            throw error.response?.data || { message: "Network error" };
+        }
+    },
+
+    // Get AI recommendation status for a strategy
+    getRecommendationStatus: async (strategyId) => {
+        try {
+            const response = await api.get(
+                `/ai-recommendations/${strategyId}/status`
+            );
+            return response.data;
+        } catch (error) {
+            console.error("AI recommendation status error:", error);
+            if (error.response?.status === 401) {
+                throw new Error("Authentication failed - please log in again");
+            }
+            throw error.response?.data || { message: "Network error" };
+        }
+    },
+};
+
 export default api;

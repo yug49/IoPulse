@@ -24,7 +24,15 @@ The JSON object MUST contain the following keys:
 - "desired_market_cap": Classify the desired investment into one of three categories: "low", "mid", or "high".
 - "investment_horizon": Classify the horizon into "short-term" or "long-term".
 
-Your entire output must ONLY be the raw JSON object and nothing else.`;
+CRITICAL INSTRUCTIONS:
+- Your response MUST be ONLY a valid JSON object
+- Do NOT include any explanations, reasoning, or additional text
+- Do NOT include markdown formatting or code blocks
+- Start your response with { and end with }
+- No text before or after the JSON object
+
+Example response format:
+{"current_holding_symbol":"BTC","risk_tolerance":"medium","desired_market_cap":"mid","investment_horizon":"long-term"}`;
 
 /**
  * Process investment strategy using the Investor Profile Agent
@@ -74,13 +82,87 @@ Looking for investment recommendations with the described strategy.`;
         });
 
         // Extract and parse response
-        const messageContent = response.data.choices[0].message.content;
+        const message = response.data.choices[0].message;
+        const messageContent = message.content || message.reasoning_content;
+
         if (!messageContent) {
             throw new Error("No content received from the API response");
         }
 
         const agentResponse = messageContent.trim();
-        const parsedProfile = JSON.parse(agentResponse);
+
+        // Try to parse the response as JSON
+        let parsedProfile;
+        try {
+            parsedProfile = JSON.parse(agentResponse);
+        } catch (parseError) {
+            // If direct parsing fails, try to extract JSON from the text
+            console.log(
+                "🔍 Direct JSON parsing failed, extracting from text..."
+            );
+            console.log(
+                "📝 Agent response:",
+                agentResponse.substring(0, 300) + "..."
+            );
+
+            // Try to find JSON object in the response
+            const jsonMatches = agentResponse.match(
+                /\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g
+            );
+            if (jsonMatches && jsonMatches.length > 0) {
+                // Try each potential JSON match
+                for (const jsonMatch of jsonMatches) {
+                    try {
+                        const testParsed = JSON.parse(jsonMatch);
+                        // Validate that it has the required fields
+                        if (
+                            testParsed.current_holding_symbol &&
+                            testParsed.risk_tolerance &&
+                            testParsed.desired_market_cap &&
+                            testParsed.investment_horizon
+                        ) {
+                            parsedProfile = testParsed;
+                            console.log(
+                                "✅ Successfully extracted valid JSON profile"
+                            );
+                            break;
+                        }
+                    } catch (matchError) {
+                        continue; // Try next match
+                    }
+                }
+
+                if (!parsedProfile) {
+                    throw new Error(
+                        `Found JSON objects but none contain required profile fields. Matches: ${jsonMatches.join(
+                            ", "
+                        )}`
+                    );
+                }
+            } else {
+                // If no JSON found, try to create a profile from the text analysis
+                console.log(
+                    "🤖 No JSON found, attempting to extract profile from reasoning..."
+                );
+                const extractedProfile = extractProfileFromText(
+                    agentResponse,
+                    strategy
+                );
+                if (extractedProfile) {
+                    parsedProfile = extractedProfile;
+                    console.log(
+                        "✅ Successfully extracted profile from reasoning text"
+                    );
+                } else {
+                    throw new Error(
+                        `No JSON object found in response: ${agentResponse.substring(
+                            0,
+                            200
+                        )}...`
+                    );
+                }
+            }
+        }
 
         return {
             success: true,
@@ -95,6 +177,77 @@ Looking for investment recommendations with the described strategy.`;
             error: error.message,
             details: error.response?.data || null,
         };
+    }
+}
+
+/**
+ * Fallback function to extract profile from reasoning text when JSON parsing fails
+ */
+function extractProfileFromText(text, strategy) {
+    try {
+        // Default profile based on strategy
+        const profile = {
+            current_holding_symbol: strategy.coin || "ETH",
+            risk_tolerance: "medium",
+            desired_market_cap: "mid",
+            investment_horizon: "long-term",
+        };
+
+        // Try to extract risk tolerance from text
+        const lowerText = text.toLowerCase();
+        if (
+            lowerText.includes("conservative") ||
+            lowerText.includes("low risk") ||
+            lowerText.includes("safe")
+        ) {
+            profile.risk_tolerance = "low";
+        } else if (
+            lowerText.includes("aggressive") ||
+            lowerText.includes("high risk") ||
+            lowerText.includes("risky")
+        ) {
+            profile.risk_tolerance = "high";
+        }
+
+        // Try to extract market cap preference
+        if (lowerText.includes("small cap") || lowerText.includes("low cap")) {
+            profile.desired_market_cap = "low";
+        } else if (
+            lowerText.includes("large cap") ||
+            lowerText.includes("big cap") ||
+            lowerText.includes("high cap")
+        ) {
+            profile.desired_market_cap = "high";
+        }
+
+        // Try to extract investment horizon
+        if (
+            lowerText.includes("short") ||
+            lowerText.includes("quick") ||
+            lowerText.includes("fast")
+        ) {
+            profile.investment_horizon = "short-term";
+        }
+
+        // Check for bullish/bearish sentiment in description
+        const description = (strategy.description || "").toLowerCase();
+        if (
+            description.includes("bullish") ||
+            description.includes("optimistic")
+        ) {
+            profile.risk_tolerance = "high";
+        } else if (
+            description.includes("bearish") ||
+            description.includes("pessimistic")
+        ) {
+            profile.risk_tolerance = "low";
+        }
+
+        console.log("📊 Extracted profile from text:", profile);
+        return profile;
+    } catch (error) {
+        console.error("❌ Failed to extract profile from text:", error);
+        return null;
     }
 }
 

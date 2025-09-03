@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import StrategyCard from "./StrategyCard";
+import StrategyDetailView from "./StrategyDetailView";
 import NotificationCard from "./NotificationCard";
 import CreateStrategyModal from "./CreateStrategyModal";
 import NotificationModal from "./NotificationModal";
@@ -9,6 +10,7 @@ import { Plus, LogOut } from "lucide-react";
 const Dashboard = ({ user, onLogout }) => {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [selectedNotification, setSelectedNotification] = useState(null);
+    const [selectedStrategy, setSelectedStrategy] = useState(null);
     const [strategies, setStrategies] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -56,6 +58,22 @@ const Dashboard = ({ user, onLogout }) => {
         setSelectedNotification(null);
     };
 
+    const handleStrategyCardClick = (strategy) => {
+        setSelectedStrategy(strategy);
+    };
+
+    const handleBackToDashboard = () => {
+        setSelectedStrategy(null);
+        // Refresh strategies when coming back from detail view
+        loadStrategies();
+    };
+
+    const handleRequestRecommendation = async (strategy) => {
+        // TODO: Implement actual API call to request recommendation
+        console.log("Requesting recommendation for strategy:", strategy);
+        // This will be implemented later when we add the working functionality
+    };
+
     // Get all pending notifications from all strategies
     const getPendingNotifications = () => {
         const notifications = [];
@@ -78,6 +96,17 @@ const Dashboard = ({ user, onLogout }) => {
     };
 
     const pendingNotifications = getPendingNotifications();
+
+    // If a strategy is selected, show the detail view
+    if (selectedStrategy) {
+        return (
+            <StrategyDetailView
+                strategy={selectedStrategy}
+                onBack={handleBackToDashboard}
+                onRequestRecommendation={handleRequestRecommendation}
+            />
+        );
+    }
 
     return (
         <div className="dashboard-container">
@@ -241,6 +270,7 @@ const Dashboard = ({ user, onLogout }) => {
                                 key={strategy._id}
                                 strategy={strategy}
                                 onUpdate={loadStrategies}
+                                onCardClick={handleStrategyCardClick}
                             />
                         ))}
                     </div>

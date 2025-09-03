@@ -178,7 +178,9 @@ async function processMarketScreening(investorProfile) {
 
         // Extract final response
         const finalChoice = response.data.choices[0];
-        const agentResponse = finalChoice.message.content;
+        const agentResponse =
+            finalChoice.message.content ||
+            finalChoice.message.reasoning_content;
 
         console.log("📋 Final Agent Response:", agentResponse);
 

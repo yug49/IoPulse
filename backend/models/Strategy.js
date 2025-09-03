@@ -51,7 +51,7 @@ const strategySchema = new mongoose.Schema(
                 },
                 recommendation: {
                     type: String,
-                    enum: ["buy", "sell", "hold"],
+                    enum: ["buy", "sell", "hold", "swap"],
                     required: true,
                 },
                 confidence: {
@@ -86,7 +86,7 @@ const strategySchema = new mongoose.Schema(
             message: String,
             recommendation: {
                 type: String,
-                enum: ["buy", "sell", "hold"],
+                enum: ["buy", "sell", "hold", "swap"],
             },
             confidence: Number,
             timestamp: Date,
@@ -103,7 +103,7 @@ const strategySchema = new mongoose.Schema(
             },
             recommendation: {
                 type: String,
-                enum: ["buy", "sell", "hold"],
+                enum: ["buy", "sell", "hold", "swap"],
                 default: "hold",
             },
             confidence: {
@@ -121,6 +121,49 @@ const strategySchema = new mongoose.Schema(
             priceAtRecommendation: {
                 type: Number,
                 default: 0,
+            },
+        },
+        latestRecommendation: {
+            recommendation: {
+                type: String,
+                enum: ["BUY", "SELL", "HOLD", "SWAP"],
+            },
+            confidence: {
+                type: Number,
+                min: 0,
+                max: 100,
+            },
+            reasoning: {
+                type: String,
+            },
+            timestamp: {
+                type: Date,
+            },
+            agentOutputs: {
+                investmentCommittee: {
+                    decision: String,
+                    confidence: Number,
+                    reasoning: String,
+                    currentHoldingsAnalysis: String,
+                },
+                quantitativeAnalysis: {
+                    score: Number,
+                    analysis: String,
+                    metrics: String,
+                    riskAdjustedReturn: String,
+                    volatility: String,
+                },
+                qualitativeDueDiligence: {
+                    score: Number,
+                    analysis: String,
+                    keyFactors: [String],
+                    currentHoldingsAnalysis: String,
+                },
+                riskAssessment: {
+                    riskLevel: String,
+                    score: Number,
+                    keyRisks: [String],
+                },
             },
         },
         performance: {

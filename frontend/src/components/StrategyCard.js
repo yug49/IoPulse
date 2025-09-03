@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { strategyAPI } from "../services/api";
 
-const StrategyCard = ({ strategy, onUpdate }) => {
+const StrategyCard = ({ strategy, onUpdate, onCardClick }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editData, setEditData] = useState({
         title: strategy.title,
@@ -67,8 +67,30 @@ const StrategyCard = ({ strategy, onUpdate }) => {
         }
     };
 
+    const handleCardClick = (e) => {
+        // Don't trigger card click when clicking on edit/delete buttons or input fields
+        if (
+            e.target.closest("button") ||
+            e.target.closest("input") ||
+            e.target.closest("textarea") ||
+            isEditing
+        ) {
+            return;
+        }
+        if (onCardClick) {
+            onCardClick(strategy);
+        }
+    };
+
     return (
-        <div className="strategy-card" style={{ position: "relative" }}>
+        <div
+            className="strategy-card"
+            style={{
+                position: "relative",
+                cursor: isEditing ? "default" : "pointer",
+            }}
+            onClick={handleCardClick}
+        >
             <div className="strategy-header">
                 {isEditing ? (
                     <input

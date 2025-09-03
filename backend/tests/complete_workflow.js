@@ -238,14 +238,8 @@ async function runCompleteWorkflow(strategy, previousRecommendation = null) {
         console.log("✅ Investment Committee Decision Completed Successfully!");
         console.log(`⏱️ Time: ${step5Time}ms`);
         console.log("🏆 Final Investment Recommendation:");
-        console.log(`   📈 ${committeeResult.recommendation.recommended_swap}`);
-        console.log(
-            `   💡 ${committeeResult.recommendation.justification_summary}`
-        );
-        console.log("   📊 Supporting Data:");
-        committeeResult.recommendation.data_points.forEach((point) => {
-            console.log(`      • ${point.metric}: ${point.value}`);
-        });
+        console.log(`   📈 ${committeeResult.recommendation.recommendation}`);
+        console.log(`   💡 ${committeeResult.recommendation.explanation}`);
 
         // Workflow completed successfully
         workflowResults.totalTime = Date.now() - workflowStart;
@@ -258,10 +252,8 @@ async function runCompleteWorkflow(strategy, previousRecommendation = null) {
 
         // Highlight the final investment committee recommendation
         console.log("\n🏆 FINAL INVESTMENT COMMITTEE RECOMMENDATION:");
-        console.log(`   📈 ${workflowResults.recommendation.recommended_swap}`);
-        console.log(
-            `   💡 ${workflowResults.recommendation.justification_summary}`
-        );
+        console.log(`   📈 ${workflowResults.recommendation.recommendation}`);
+        console.log(`   💡 ${workflowResults.recommendation.explanation}`);
 
         console.log("\n📊 COMPLETE ANALYSIS SUMMARY:");
         // Sort by quant score and show top recommendations with qualitative scores
@@ -271,7 +263,7 @@ async function runCompleteWorkflow(strategy, previousRecommendation = null) {
         sortedFinalAnalysis.forEach((coin, index) => {
             if (coin.qualitative_score !== undefined) {
                 const isRecommended =
-                    workflowResults.recommendation.recommended_swap.includes(
+                    workflowResults.recommendation.recommendation.includes(
                         coin.symbol
                     );
                 const marker = isRecommended ? "🏆" : "  ";
