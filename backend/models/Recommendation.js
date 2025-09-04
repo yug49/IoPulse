@@ -86,6 +86,7 @@ recommendationSchema.virtual("age").get(function () {
 // Method to accept recommendation
 recommendationSchema.methods.accept = async function (notes = "") {
     const Strategy = require("./Strategy");
+    const HistoryLogger = require("../utils/historyLogger");
 
     this.status = "accepted";
     this.userResponse = {
@@ -97,6 +98,8 @@ recommendationSchema.methods.accept = async function (notes = "") {
     // Update strategy based on recommendation
     const strategy = await Strategy.findById(this.strategy);
     if (strategy) {
+        const oldCoin = strategy.coin;
+
         // Parse the recommendation text to determine the action
         const recText = this.recommendation || "";
 
@@ -113,6 +116,18 @@ recommendationSchema.methods.accept = async function (notes = "") {
                     `💱 Updating strategy ${strategy._id} from ${strategy.coin} to ${newToken}`
                 );
                 strategy.coin = newToken;
+
+                // Log holding update
+                try {
+                    await HistoryLogger.logHoldingUpdated(
+                        strategy,
+                        oldCoin,
+                        newToken,
+                        strategy.user
+                    );
+                } catch (error) {
+                    console.error("❌ Error logging holding update:", error);
+                }
             }
         }
         // If it's a hold recommendation, we don't change the coin
@@ -132,6 +147,17 @@ recommendationSchema.methods.accept = async function (notes = "") {
         );
     }
 
+    // Log recommendation acceptance
+    try {
+        await HistoryLogger.logRecommendationAccepted(
+            strategy,
+            this,
+            strategy.user
+        );
+    } catch (error) {
+        console.error("❌ Error logging recommendation acceptance:", error);
+    }
+
     // Deactivate the recommendation (delete from active recommendations)
     this.isActive = false;
 
@@ -139,13 +165,30 @@ recommendationSchema.methods.accept = async function (notes = "") {
 };
 
 // Method to reject recommendation
-recommendationSchema.methods.reject = function (notes = "") {
+recommendationSchema.methods.reject = async function (notes = "") {
+    const Strategy = require("./Strategy");
+    const HistoryLogger = require("../utils/historyLogger");
+
     this.status = "rejected";
     this.userResponse = {
         response: "rejected",
         timestamp: new Date(),
         notes: notes,
     };
+
+    // Log recommendation rejection
+    const strategy = await Strategy.findById(this.strategy);
+    if (strategy) {
+        try {
+            await HistoryLogger.logRecommendationRejected(
+                strategy,
+                this,
+                strategy.user
+            );
+        } catch (error) {
+            console.error("❌ Error logging recommendation rejection:", error);
+        }
+    }
 
     // Deactivate the recommendation (delete from active recommendations)
     this.isActive = false;

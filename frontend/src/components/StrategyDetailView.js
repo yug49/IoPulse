@@ -12,6 +12,8 @@ import {
     Target,
     Zap,
 } from "lucide-react";
+import HistoryTab from "./HistoryTab";
+import { historyAPI } from "../services/api";
 
 const API_BASE_URL = "http://localhost:5001";
 
@@ -21,6 +23,12 @@ const StrategyDetailView = ({
     onRequestRecommendation,
     addNotification,
 }) => {
+    const [activeTab, setActiveTab] = useState("overview");
+    const [history, setHistory] = useState([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [historyPage, setHistoryPage] = useState(1);
+    const [hasMoreHistory, setHasMoreHistory] = useState(true);
+
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState(null);
     const [processSteps, setProcessSteps] = useState([
@@ -102,6 +110,51 @@ const StrategyDetailView = ({
     ]);
 
     const [finalRecommendation, setFinalRecommendation] = useState(null);
+
+    // Load strategy history
+    const loadHistory = async (page = 1, reset = false) => {
+        try {
+            setHistoryLoading(true);
+            const response = await historyAPI.getStrategyHistory(
+                strategy._id || strategy.id,
+                page,
+                20 // limit
+            );
+
+            if (response.success) {
+                if (reset) {
+                    setHistory(response.data);
+                } else {
+                    setHistory((prev) => [...prev, ...response.data]);
+                }
+
+                setHasMoreHistory(
+                    response.pagination.currentPage <
+                        response.pagination.totalPages
+                );
+                setHistoryPage(page);
+            }
+        } catch (error) {
+            console.error("Error loading history:", error);
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
+
+    // Load more history entries
+    const loadMoreHistory = () => {
+        if (!historyLoading && hasMoreHistory) {
+            loadHistory(historyPage + 1, false);
+        }
+    };
+
+    // Load history when tab is opened for the first time
+    const handleTabChange = (tab) => {
+        setActiveTab(tab);
+        if (tab === "history" && history.length === 0) {
+            loadHistory(1, true);
+        }
+    };
 
     const handleRequestRecommendation = async () => {
         setIsProcessing(true);
@@ -554,413 +607,517 @@ ${finalRec.explanation}
                 </div>
             )}
 
-            {/* Three Column Layout with Bottom Panel */}
-            <div className="strategy-detail-content">
-                {/* Main Row - Three Columns */}
-                <div className="strategy-detail-main-row">
-                    {/* Left Column - Process Flow */}
-                    <div className="process-flow-column">
-                        <div className="process-flow-header">
-                            <h2>Process Flow</h2>
-                            <button
-                                onClick={handleRequestRecommendation}
-                                disabled={isProcessing}
-                                className="request-recommendation-button"
-                                style={{
-                                    opacity: isProcessing ? 0.6 : 1,
-                                    cursor: isProcessing
-                                        ? "not-allowed"
-                                        : "pointer",
-                                }}
-                            >
-                                <Play size={16} />
-                                {isProcessing
-                                    ? "Processing..."
-                                    : "Request Recommendation"}
-                            </button>
-                        </div>
+            {/* Tab Navigation */}
+            <div
+                style={{
+                    display: "flex",
+                    borderBottom: "1px solid #374151",
+                    marginBottom: "24px",
+                }}
+            >
+                {[
+                    {
+                        id: "overview",
+                        label: "Overview",
+                        icon: <Activity size={16} />,
+                    },
+                    {
+                        id: "history",
+                        label: "History",
+                        icon: <Clock size={16} />,
+                    },
+                ].map((tab) => (
+                    <button
+                        key={tab.id}
+                        onClick={() => handleTabChange(tab.id)}
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            padding: "12px 24px",
+                            backgroundColor: "transparent",
+                            border: "none",
+                            borderBottom:
+                                activeTab === tab.id
+                                    ? "2px solid #3b82f6"
+                                    : "2px solid transparent",
+                            color: activeTab === tab.id ? "#3b82f6" : "#9ca3af",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            fontWeight: activeTab === tab.id ? "600" : "400",
+                            transition: "all 0.2s",
+                        }}
+                        onMouseEnter={(e) => {
+                            if (activeTab !== tab.id) {
+                                e.target.style.color = "#d1d5db";
+                            }
+                        }}
+                        onMouseLeave={(e) => {
+                            if (activeTab !== tab.id) {
+                                e.target.style.color = "#9ca3af";
+                            }
+                        }}
+                    >
+                        {tab.icon}
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
 
-                        <div className="process-flow-content">
-                            {processSteps.map((step, index) => (
-                                <div key={step.id} className="process-step">
-                                    <div className="process-step-indicator">
-                                        <div
-                                            className="step-number"
-                                            style={{
-                                                backgroundColor: getStatusColor(
-                                                    step.status
-                                                ),
-                                                color:
-                                                    step.status === "pending"
-                                                        ? "#6b7280"
-                                                        : "white",
-                                            }}
-                                        >
-                                            {step.status === "pending"
-                                                ? step.id
-                                                : getStatusIcon(step.status)}
-                                        </div>
-                                        {index < processSteps.length - 1 && (
-                                            <div
-                                                className="step-connector"
-                                                style={{
-                                                    backgroundColor:
-                                                        step.status ===
-                                                        "completed"
-                                                            ? "#10b981"
-                                                            : "#374151",
-                                                }}
-                                            />
-                                        )}
-                                    </div>
-                                    <div className="process-step-content">
-                                        <h3 className="step-title">
-                                            {step.name}
-                                        </h3>
-                                        <p className="step-description">
-                                            {step.description}
-                                        </p>
-                                        {step.timestamp && (
-                                            <span className="step-timestamp">
-                                                {step.status === "processing"
-                                                    ? "Started: "
-                                                    : "Completed: "}
-                                                {formatDate(step.timestamp)}
-                                            </span>
-                                        )}
-                                        {step.status === "processing" && (
-                                            <div className="processing-indicator">
-                                                <div className="processing-bar">
-                                                    <div className="processing-bar-fill"></div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Middle Column - Agent Outputs */}
-                    <div className="agent-output-column">
-                        <div className="agent-output-header">
-                            <h2>AI Agent Outputs</h2>
-                        </div>
-
-                        <div className="agent-outputs-container">
-                            {agentOutputs.map((agent) => (
-                                <div
-                                    key={agent.id}
-                                    className={`agent-output-item ${agent.status}`}
-                                >
-                                    <div className="agent-output-title">
-                                        <h4>
-                                            {getStatusIcon(agent.status)}
-                                            {agent.name}
-                                        </h4>
-                                        <span
-                                            className={`agent-status-badge ${agent.status}`}
-                                        >
-                                            {agent.status}
-                                        </span>
-                                    </div>
-
-                                    <div className="agent-output-content">
-                                        {agent.status === "processing" ? (
-                                            <div className="typing-indicator">
-                                                <span>Analyzing</span>
-                                                <div className="typing-dots">
-                                                    <div className="typing-dot"></div>
-                                                    <div className="typing-dot"></div>
-                                                    <div className="typing-dot"></div>
-                                                </div>
-                                            </div>
-                                        ) : agent.output ? (
-                                            <pre
-                                                style={{
-                                                    whiteSpace: "pre-wrap",
-                                                    fontFamily: "inherit",
-                                                    margin: 0,
-                                                    fontSize: "13px",
-                                                    lineHeight: "1.4",
-                                                }}
-                                            >
-                                                {agent.output}
-                                            </pre>
-                                        ) : (
-                                            <div className="agent-output-content empty">
-                                                Waiting for analysis to begin...
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {agent.timestamp && (
-                                        <div className="agent-output-timestamp">
-                                            {agent.status === "processing"
-                                                ? "Started: "
-                                                : "Completed: "}
-                                            {formatDate(agent.timestamp)}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Right Column - Strategy Info */}
-                    <div className="strategy-info-column">
-                        <div className="strategy-info-card">
-                            <h3>Strategy Overview</h3>
-
-                            <div className="strategy-info-details">
-                                <div className="info-item">
-                                    <div className="info-label">
-                                        <Coins size={16} />
-                                        Asset
-                                    </div>
-                                    <div className="info-value">
-                                        {strategy.coin}
-                                    </div>
-                                </div>
-
-                                <div className="info-item">
-                                    <div className="info-label">
-                                        <DollarSign size={16} />
-                                        Amount
-                                    </div>
-                                    <div className="info-value">
-                                        {strategy.currentAmount} {strategy.coin}
-                                    </div>
-                                </div>
-
-                                <div className="info-item">
-                                    <div className="info-label">
-                                        <TrendingUp size={16} />
-                                        Status
-                                    </div>
-                                    <div className="info-value">
-                                        <span
-                                            className="status-badge"
-                                            style={{
-                                                backgroundColor:
-                                                    strategy.status === "active"
-                                                        ? "#10b981"
-                                                        : strategy.status ===
-                                                          "paused"
-                                                        ? "#f59e0b"
-                                                        : "#ef4444",
-                                                color: "white",
-                                                padding: "4px 8px",
-                                                borderRadius: "12px",
-                                                fontSize: "12px",
-                                                textTransform: "capitalize",
-                                            }}
-                                        >
-                                            {strategy.status}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className="info-item">
-                                    <div className="info-label">
-                                        <Clock size={16} />
-                                        Created
-                                    </div>
-                                    <div className="info-value">
-                                        {formatDate(strategy.createdAt)}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="strategy-description-section">
-                                <h4>Description</h4>
-                                <p className="strategy-description-text">
-                                    {strategy.description}
-                                </p>
-                            </div>
-
-                            {/* Last Recommendation */}
-                            {strategy.lastObeyedRecommendation &&
-                                strategy.lastObeyedRecommendation.message !==
-                                    "No recommendations followed yet" && (
-                                    <div className="last-recommendation">
-                                        <h4>Last Recommendation</h4>
-                                        <div className="recommendation-content">
-                                            <p>
-                                                {
-                                                    strategy
-                                                        .lastObeyedRecommendation
-                                                        .message
-                                                }
-                                            </p>
-                                            <div className="recommendation-meta">
-                                                <span
-                                                    className="recommendation-type"
-                                                    style={{
-                                                        color:
-                                                            strategy
-                                                                .lastObeyedRecommendation
-                                                                .recommendation ===
-                                                            "buy"
-                                                                ? "#10b981"
-                                                                : strategy
-                                                                      .lastObeyedRecommendation
-                                                                      .recommendation ===
-                                                                  "sell"
-                                                                ? "#ef4444"
-                                                                : "#f59e0b",
-                                                    }}
-                                                >
-                                                    {(
-                                                        strategy
-                                                            .lastObeyedRecommendation
-                                                            .recommendation ||
-                                                        ""
-                                                    ).toUpperCase()}
-                                                </span>
-                                                <span className="recommendation-date">
-                                                    {formatDate(
-                                                        strategy
-                                                            .lastObeyedRecommendation
-                                                            .timestamp
-                                                    )}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Bottom Panel - Final Output Display */}
-                <div className="strategy-detail-bottom-panel">
-                    <div className="final-output-panel">
-                        <div className="final-output-header">
-                            <h2>
-                                <Target size={24} />
-                                Final Investment Recommendation
-                            </h2>
-                            <div
-                                className={`final-output-status ${
-                                    finalRecommendation ? "ready" : "waiting"
-                                }`}
-                            >
-                                {finalRecommendation ? (
-                                    <>
-                                        <CheckCircle size={16} />
-                                        Ready
-                                    </>
-                                ) : (
-                                    <>
-                                        <Clock size={16} />
-                                        Waiting for Analysis
-                                    </>
-                                )}
-                            </div>
-                        </div>
-
-                        {finalRecommendation ? (
-                            <div className="final-output-content">
-                                {/* Left Side - Recommendation Decision */}
-                                <div className="final-recommendation-card">
-                                    <h3>
-                                        <Zap size={20} />
-                                        Investment Decision
-                                    </h3>
-
-                                    <div className="recommendation-decision">
-                                        <div
-                                            className={`decision-action ${finalRecommendation.action.toLowerCase()}`}
-                                        >
-                                            {finalRecommendation.action}
-                                        </div>
-                                        <div className="decision-confidence">
-                                            <span className="confidence-score">
-                                                {finalRecommendation.confidence}
-                                                %
-                                            </span>
-                                            <div className="confidence-label">
-                                                Confidence
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <p className="recommendation-summary-text">
-                                        {finalRecommendation.summary}
-                                    </p>
-
-                                    {finalRecommendation.executionTime && (
-                                        <div className="execution-stats">
-                                            <div className="stat-item">
-                                                <span className="stat-label">
-                                                    Execution Time:
-                                                </span>
-                                                <span className="stat-value">
-                                                    {
-                                                        finalRecommendation.executionTime
-                                                    }
-                                                    ms
-                                                </span>
-                                            </div>
-                                            <div className="stat-item">
-                                                <span className="stat-label">
-                                                    Agents Used:
-                                                </span>
-                                                <span className="stat-value">
-                                                    {
-                                                        finalRecommendation.agentsUsed
-                                                    }
-                                                </span>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="final-output-content">
-                                <div
-                                    style={{
-                                        gridColumn: "1 / -1",
-                                        textAlign: "center",
-                                        padding: "40px",
-                                        color: "#9ca3af",
-                                    }}
-                                >
-                                    <Clock
-                                        size={48}
+            {/* Tab Content */}
+            {activeTab === "overview" && (
+                <div>
+                    {/* Three Column Layout with Bottom Panel */}
+                    <div className="strategy-detail-content">
+                        {/* Main Row - Three Columns */}
+                        <div className="strategy-detail-main-row">
+                            {/* Left Column - Process Flow */}
+                            <div className="process-flow-column">
+                                <div className="process-flow-header">
+                                    <h2>Process Flow</h2>
+                                    <button
+                                        onClick={handleRequestRecommendation}
+                                        disabled={isProcessing}
+                                        className="request-recommendation-button"
                                         style={{
-                                            marginBottom: "16px",
-                                            opacity: 0.5,
-                                        }}
-                                    />
-                                    <h3
-                                        style={{
-                                            marginBottom: "8px",
-                                            color: "#d1d5db",
+                                            opacity: isProcessing ? 0.6 : 1,
+                                            cursor: isProcessing
+                                                ? "not-allowed"
+                                                : "pointer",
                                         }}
                                     >
-                                        Waiting for AI Analysis
-                                    </h3>
-                                    <p>
-                                        Click "Request Recommendation" to start
-                                        the analysis process. The final
-                                        recommendation will appear here once all
-                                        agents complete their analysis.
-                                    </p>
+                                        <Play size={16} />
+                                        {isProcessing
+                                            ? "Processing..."
+                                            : "Request Recommendation"}
+                                    </button>
+                                </div>
+
+                                <div className="process-flow-content">
+                                    {processSteps.map((step, index) => (
+                                        <div
+                                            key={step.id}
+                                            className="process-step"
+                                        >
+                                            <div className="process-step-indicator">
+                                                <div
+                                                    className="step-number"
+                                                    style={{
+                                                        backgroundColor:
+                                                            getStatusColor(
+                                                                step.status
+                                                            ),
+                                                        color:
+                                                            step.status ===
+                                                            "pending"
+                                                                ? "#6b7280"
+                                                                : "white",
+                                                    }}
+                                                >
+                                                    {step.status === "pending"
+                                                        ? step.id
+                                                        : getStatusIcon(
+                                                              step.status
+                                                          )}
+                                                </div>
+                                                {index <
+                                                    processSteps.length - 1 && (
+                                                    <div
+                                                        className="step-connector"
+                                                        style={{
+                                                            backgroundColor:
+                                                                step.status ===
+                                                                "completed"
+                                                                    ? "#10b981"
+                                                                    : "#374151",
+                                                        }}
+                                                    />
+                                                )}
+                                            </div>
+                                            <div className="process-step-content">
+                                                <h3 className="step-title">
+                                                    {step.name}
+                                                </h3>
+                                                <p className="step-description">
+                                                    {step.description}
+                                                </p>
+                                                {step.timestamp && (
+                                                    <span className="step-timestamp">
+                                                        {step.status ===
+                                                        "processing"
+                                                            ? "Started: "
+                                                            : "Completed: "}
+                                                        {formatDate(
+                                                            step.timestamp
+                                                        )}
+                                                    </span>
+                                                )}
+                                                {step.status ===
+                                                    "processing" && (
+                                                    <div className="processing-indicator">
+                                                        <div className="processing-bar">
+                                                            <div className="processing-bar-fill"></div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
-                        )}
 
-                        {finalRecommendation && (
-                            <div className="final-output-timestamp">
-                                Analysis completed on{" "}
-                                {formatDate(finalRecommendation.timestamp)}
+                            {/* Middle Column - Agent Outputs */}
+                            <div className="agent-output-column">
+                                <div className="agent-output-header">
+                                    <h2>AI Agent Outputs</h2>
+                                </div>
+
+                                <div className="agent-outputs-container">
+                                    {agentOutputs.map((agent) => (
+                                        <div
+                                            key={agent.id}
+                                            className={`agent-output-item ${agent.status}`}
+                                        >
+                                            <div className="agent-output-title">
+                                                <h4>
+                                                    {getStatusIcon(
+                                                        agent.status
+                                                    )}
+                                                    {agent.name}
+                                                </h4>
+                                                <span
+                                                    className={`agent-status-badge ${agent.status}`}
+                                                >
+                                                    {agent.status}
+                                                </span>
+                                            </div>
+
+                                            <div className="agent-output-content">
+                                                {agent.status ===
+                                                "processing" ? (
+                                                    <div className="typing-indicator">
+                                                        <span>Analyzing</span>
+                                                        <div className="typing-dots">
+                                                            <div className="typing-dot"></div>
+                                                            <div className="typing-dot"></div>
+                                                            <div className="typing-dot"></div>
+                                                        </div>
+                                                    </div>
+                                                ) : agent.output ? (
+                                                    <pre
+                                                        style={{
+                                                            whiteSpace:
+                                                                "pre-wrap",
+                                                            fontFamily:
+                                                                "inherit",
+                                                            margin: 0,
+                                                            fontSize: "13px",
+                                                            lineHeight: "1.4",
+                                                        }}
+                                                    >
+                                                        {agent.output}
+                                                    </pre>
+                                                ) : (
+                                                    <div className="agent-output-content empty">
+                                                        Waiting for analysis to
+                                                        begin...
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {agent.timestamp && (
+                                                <div className="agent-output-timestamp">
+                                                    {agent.status ===
+                                                    "processing"
+                                                        ? "Started: "
+                                                        : "Completed: "}
+                                                    {formatDate(
+                                                        agent.timestamp
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        )}
+
+                            {/* Right Column - Strategy Info */}
+                            <div className="strategy-info-column">
+                                <div className="strategy-info-card">
+                                    <h3>Strategy Overview</h3>
+
+                                    <div className="strategy-info-details">
+                                        <div className="info-item">
+                                            <div className="info-label">
+                                                <Coins size={16} />
+                                                Asset
+                                            </div>
+                                            <div className="info-value">
+                                                {strategy.coin}
+                                            </div>
+                                        </div>
+
+                                        <div className="info-item">
+                                            <div className="info-label">
+                                                <DollarSign size={16} />
+                                                Amount
+                                            </div>
+                                            <div className="info-value">
+                                                {strategy.currentAmount}{" "}
+                                                {strategy.coin}
+                                            </div>
+                                        </div>
+
+                                        <div className="info-item">
+                                            <div className="info-label">
+                                                <TrendingUp size={16} />
+                                                Status
+                                            </div>
+                                            <div className="info-value">
+                                                <span
+                                                    className="status-badge"
+                                                    style={{
+                                                        backgroundColor:
+                                                            strategy.status ===
+                                                            "active"
+                                                                ? "#10b981"
+                                                                : strategy.status ===
+                                                                  "paused"
+                                                                ? "#f59e0b"
+                                                                : "#ef4444",
+                                                        color: "white",
+                                                        padding: "4px 8px",
+                                                        borderRadius: "12px",
+                                                        fontSize: "12px",
+                                                        textTransform:
+                                                            "capitalize",
+                                                    }}
+                                                >
+                                                    {strategy.status}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="info-item">
+                                            <div className="info-label">
+                                                <Clock size={16} />
+                                                Created
+                                            </div>
+                                            <div className="info-value">
+                                                {formatDate(strategy.createdAt)}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="strategy-description-section">
+                                        <h4>Description</h4>
+                                        <p className="strategy-description-text">
+                                            {strategy.description}
+                                        </p>
+                                    </div>
+
+                                    {/* Last Recommendation */}
+                                    {strategy.lastObeyedRecommendation &&
+                                        strategy.lastObeyedRecommendation
+                                            .message !==
+                                            "No recommendations followed yet" && (
+                                            <div className="last-recommendation">
+                                                <h4>Last Recommendation</h4>
+                                                <div className="recommendation-content">
+                                                    <p>
+                                                        {
+                                                            strategy
+                                                                .lastObeyedRecommendation
+                                                                .message
+                                                        }
+                                                    </p>
+                                                    <div className="recommendation-meta">
+                                                        <span
+                                                            className="recommendation-type"
+                                                            style={{
+                                                                color:
+                                                                    strategy
+                                                                        .lastObeyedRecommendation
+                                                                        .recommendation ===
+                                                                    "buy"
+                                                                        ? "#10b981"
+                                                                        : strategy
+                                                                              .lastObeyedRecommendation
+                                                                              .recommendation ===
+                                                                          "sell"
+                                                                        ? "#ef4444"
+                                                                        : "#f59e0b",
+                                                            }}
+                                                        >
+                                                            {(
+                                                                strategy
+                                                                    .lastObeyedRecommendation
+                                                                    .recommendation ||
+                                                                ""
+                                                            ).toUpperCase()}
+                                                        </span>
+                                                        <span className="recommendation-date">
+                                                            {formatDate(
+                                                                strategy
+                                                                    .lastObeyedRecommendation
+                                                                    .timestamp
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Bottom Panel - Final Output Display */}
+                        <div className="strategy-detail-bottom-panel">
+                            <div className="final-output-panel">
+                                <div className="final-output-header">
+                                    <h2>
+                                        <Target size={24} />
+                                        Final Investment Recommendation
+                                    </h2>
+                                    <div
+                                        className={`final-output-status ${
+                                            finalRecommendation
+                                                ? "ready"
+                                                : "waiting"
+                                        }`}
+                                    >
+                                        {finalRecommendation ? (
+                                            <>
+                                                <CheckCircle size={16} />
+                                                Ready
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Clock size={16} />
+                                                Waiting for Analysis
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {finalRecommendation ? (
+                                    <div className="final-output-content">
+                                        {/* Left Side - Recommendation Decision */}
+                                        <div className="final-recommendation-card">
+                                            <h3>
+                                                <Zap size={20} />
+                                                Investment Decision
+                                            </h3>
+
+                                            <div className="recommendation-decision">
+                                                <div
+                                                    className={`decision-action ${finalRecommendation.action.toLowerCase()}`}
+                                                >
+                                                    {finalRecommendation.action}
+                                                </div>
+                                                <div className="decision-confidence">
+                                                    <span className="confidence-score">
+                                                        {
+                                                            finalRecommendation.confidence
+                                                        }
+                                                        %
+                                                    </span>
+                                                    <div className="confidence-label">
+                                                        Confidence
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <p className="recommendation-summary-text">
+                                                {finalRecommendation.summary}
+                                            </p>
+
+                                            {finalRecommendation.executionTime && (
+                                                <div className="execution-stats">
+                                                    <div className="stat-item">
+                                                        <span className="stat-label">
+                                                            Execution Time:
+                                                        </span>
+                                                        <span className="stat-value">
+                                                            {
+                                                                finalRecommendation.executionTime
+                                                            }
+                                                            ms
+                                                        </span>
+                                                    </div>
+                                                    <div className="stat-item">
+                                                        <span className="stat-label">
+                                                            Agents Used:
+                                                        </span>
+                                                        <span className="stat-value">
+                                                            {
+                                                                finalRecommendation.agentsUsed
+                                                            }
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="final-output-content">
+                                        <div
+                                            style={{
+                                                gridColumn: "1 / -1",
+                                                textAlign: "center",
+                                                padding: "40px",
+                                                color: "#9ca3af",
+                                            }}
+                                        >
+                                            <Clock
+                                                size={48}
+                                                style={{
+                                                    marginBottom: "16px",
+                                                    opacity: 0.5,
+                                                }}
+                                            />
+                                            <h3
+                                                style={{
+                                                    marginBottom: "8px",
+                                                    color: "#d1d5db",
+                                                }}
+                                            >
+                                                Waiting for AI Analysis
+                                            </h3>
+                                            <p>
+                                                Click "Request Recommendation"
+                                                to start the analysis process.
+                                                The final recommendation will
+                                                appear here once all agents
+                                                complete their analysis.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {finalRecommendation && (
+                                    <div className="final-output-timestamp">
+                                        Analysis completed on{" "}
+                                        {formatDate(
+                                            finalRecommendation.timestamp
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
+
+            {/* History Tab Content */}
+            {activeTab === "history" && (
+                <HistoryTab
+                    history={history}
+                    loading={historyLoading}
+                    onLoadMore={loadMoreHistory}
+                    hasMore={hasMoreHistory}
+                />
+            )}
         </div>
     );
 };

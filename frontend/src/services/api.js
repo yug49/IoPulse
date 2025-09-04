@@ -275,4 +275,42 @@ export const recommendationAPI = {
     },
 };
 
+// History API functions
+export const historyAPI = {
+    // Get history for a specific strategy
+    getStrategyHistory: async (strategyId, page = 1, limit = 50) => {
+        try {
+            const response = await api.get(
+                `/history/strategy/${strategyId}?page=${page}&limit=${limit}`
+            );
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || { message: "Network error" };
+        }
+    },
+
+    // Get history for the current user
+    getUserHistory: async (page = 1, limit = 100, eventType = null) => {
+        try {
+            const params = new URLSearchParams({ page, limit });
+            if (eventType) params.append("eventType", eventType);
+
+            const response = await api.get(`/history/user?${params}`);
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || { message: "Network error" };
+        }
+    },
+
+    // Create a new history entry (internal use)
+    createHistoryEntry: async (entryData) => {
+        try {
+            const response = await api.post("/history", entryData);
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || { message: "Network error" };
+        }
+    },
+};
+
 export default api;

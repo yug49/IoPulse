@@ -267,4 +267,25 @@ strategySchema.methods.getPendingNotifications = function () {
     return this.notifications.filter((n) => n.userResponse === "pending");
 };
 
+// Post-save hook to log strategy creation
+strategySchema.post("save", async function (doc, next) {
+    // Only log on creation (when isNew was true)
+    if (this.wasNew) {
+        try {
+            const HistoryLogger = require("../utils/historyLogger");
+            await HistoryLogger.logStrategyCreated(doc, doc.user);
+        } catch (error) {
+            console.error("❌ Error logging strategy creation:", error);
+            // Don't fail the save operation if history logging fails
+        }
+    }
+    next();
+});
+
+// Pre-save hook to track if this is a new document
+strategySchema.pre("save", function (next) {
+    this.wasNew = this.isNew;
+    next();
+});
+
 module.exports = mongoose.model("Strategy", strategySchema);

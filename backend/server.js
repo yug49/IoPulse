@@ -21,6 +21,7 @@ app.use("/api/auth", require("./routes/auth"));
 app.use("/api/strategies", require("./routes/strategies"));
 app.use("/api/ai-recommendations", require("./routes/ai-recommendations"));
 app.use("/api/recommendations", require("./routes/recommendations"));
+app.use("/api/history", require("./routes/history"));
 
 // Health check
 app.get("/api/health", (req, res) => {
