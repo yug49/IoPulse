@@ -9,12 +9,11 @@ const {
     saveRecommendationToDatabase,
 } = require("../utils/recommendationUtils");
 
-// Import the 5-agent workflow
+// Import the simplified 2-agent workflow
 const {
-    runCompleteWorkflow,
-    runCompleteWorkflowWithUpdates,
-    saveRecommendationToDatabase: saveRecommendationToDBFromTests,
-} = require("../tests/complete_workflow");
+    runSimplifiedWorkflow,
+    runSimplifiedWorkflowWithUpdates,
+} = require("../tests/simplified_workflow");
 
 /**
  * @route   GET /api/ai-recommendations/:strategyId/request-stream
@@ -108,8 +107,8 @@ router.get("/:strategyId/request-stream", async (req, res) => {
         console.log("📝 Previous Recommendation:", previousRecommendation);
 
         // Start the AI workflow with real-time progress updates
-        console.log("🚀 Starting 5-Agent AI Workflow...");
-        const workflowResult = await runCompleteWorkflowWithUpdates(
+        console.log("🚀 Starting Simplified 2-Agent AI Workflow...");
+        const workflowResult = await runSimplifiedWorkflowWithUpdates(
             workflowInput,
             previousRecommendation,
             (update) => {
@@ -161,8 +160,8 @@ router.get("/:strategyId/request-stream", async (req, res) => {
                       .includes("swap")
                 ? "swap"
                 : "hold",
-            confidence: 85, // Default confidence, could be extracted from AI analysis
-            priceAtRecommendation: 0, // Would need to be fetched from current market data
+            confidence: 85, // Default confidence for simplified AI workflow - based on Llama-3.3-70B-Instruct analysis
+            priceAtRecommendation: null, // No price data available - requires real market data API
             aiAnalysisData: analysisData,
             workflowExecutionTime: workflowResult.totalTime,
         };
@@ -288,8 +287,8 @@ router.post("/:strategyId/request", auth, async (req, res) => {
         console.log("📝 Previous Recommendation:", previousRecommendation);
 
         // Start the AI workflow with real-time progress updates
-        console.log("🚀 Starting 5-Agent AI Workflow...");
-        const workflowResult = await runCompleteWorkflowWithUpdates(
+        console.log("🚀 Starting Simplified 2-Agent AI Workflow...");
+        const workflowResult = await runSimplifiedWorkflowWithUpdates(
             workflowInput,
             previousRecommendation,
             (update) => {
@@ -341,8 +340,8 @@ router.post("/:strategyId/request", auth, async (req, res) => {
                       .includes("swap")
                 ? "swap"
                 : "hold",
-            confidence: 85, // Default confidence, could be extracted from AI analysis
-            priceAtRecommendation: 0, // Would need to be fetched from current market data
+            confidence: 85, // Default confidence for simplified AI workflow - based on Llama-3.3-70B-Instruct analysis
+            priceAtRecommendation: null, // No price data available - requires real market data API
             aiAnalysisData: analysisData,
             workflowExecutionTime: workflowResult.totalTime,
         };

@@ -8,7 +8,7 @@
  * 2. Market Screener Agent - Finds 15 investment candidates based on profile
  */
 
-const { processInvestmentStrategy } = require("./investor_profile_agent.js");
+const { processInvestorProfile } = require("./investor_profile_agent.js");
 const { processMarketScreening } = require("./market_screener_agent.js");
 const {
     processQuantitativeAnalysis,
@@ -68,7 +68,7 @@ async function runCompleteWorkflow(strategy, previousRecommendation = null) {
 🎯 Step ${currentWorkflowStep}: Processing Investor Profile...`);
         const step1Start = Date.now();
 
-        const profileResult = await processInvestmentStrategy(strategy);
+        const profileResult = await processInvestorProfile(strategy);
         const step1Time = Date.now() - step1Start;
 
         if (!profileResult.success) {
@@ -451,7 +451,7 @@ async function runCompleteWorkflowWithUpdates(
         });
 
         const step1Start = Date.now();
-        const profileResult = await processInvestmentStrategy(strategy);
+        const profileResult = await processInvestorProfile(strategy);
         const step1Time = Date.now() - step1Start;
 
         if (!profileResult.success) {

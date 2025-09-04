@@ -48,7 +48,7 @@ async function saveRecommendationToDatabase(
             user: strategy.user,
             recommendation: finalRecommendation.recommendation, // The full recommendation text
             action: recommendationAction,
-            confidence: 85, // Default confidence
+            confidence: 85, // Default confidence value for AI analysis
             explanation: finalRecommendation.explanation,
             executionTime: executionTime,
             agentsUsed: agentsUsed,

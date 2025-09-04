@@ -194,7 +194,7 @@ strategySchema.methods.addNotification = function (notificationData) {
         message: notificationData.message,
         recommendation: notificationData.recommendation,
         confidence: notificationData.confidence,
-        priceAtRecommendation: notificationData.priceAtRecommendation || 0,
+        priceAtRecommendation: notificationData.priceAtRecommendation || null,
         timestamp: new Date(),
     };
 

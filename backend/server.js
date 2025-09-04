@@ -78,45 +78,34 @@ app.post("/api/test-notification/:strategyId", async (req, res) => {
             return res.status(404).json({ message: "Strategy not found" });
         }
 
-        const sampleNotifications = [
-            {
-                message:
-                    "AI analysis suggests strong bullish momentum. Consider increasing position.",
-                recommendation: "buy",
-                confidence: 85,
-                priceAtRecommendation: 45000,
-            },
-            {
-                message:
-                    "Market volatility detected. Recommend reducing exposure to minimize risk.",
-                recommendation: "sell",
-                confidence: 78,
-                priceAtRecommendation: 46000,
-            },
-            {
-                message:
-                    "Current position is optimal. Maintain holdings for next 24 hours.",
-                recommendation: "hold",
-                confidence: 92,
-                priceAtRecommendation: 45500,
-            },
-        ];
+        // Require real recommendation data instead of using mock values
+        const { message, recommendation, confidence, priceAtRecommendation } =
+            req.body;
 
-        const randomNotification =
-            sampleNotifications[
-                Math.floor(Math.random() * sampleNotifications.length)
-            ];
+        if (!message || !recommendation) {
+            return res.status(400).json({
+                message: "Missing required fields: message, recommendation",
+                error: "Real notification data required - no mock values allowed",
+            });
+        }
 
-        await strategy.addNotification(randomNotification);
+        const notificationData = {
+            message,
+            recommendation,
+            confidence: confidence || null,
+            priceAtRecommendation: priceAtRecommendation || null,
+        };
+
+        await strategy.addNotification(notificationData);
 
         res.json({
-            message: "Test notification added successfully",
+            message: "Notification added successfully with real data",
             notification: strategy.latestNotification,
         });
     } catch (error) {
-        console.error("Error adding test notification:", error);
+        console.error("Error adding notification:", error);
         res.status(500).json({
-            message: "Error adding test notification",
+            message: "Error adding notification",
             error: error.message,
         });
     }
