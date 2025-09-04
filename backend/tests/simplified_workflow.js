@@ -37,11 +37,14 @@ ANALYSIS REQUIREMENTS:
 5. Quantitative and qualitative scores for top candidates
 
 Based on the strategy provided, use your extensive cryptocurrency market knowledge to:
-- Evaluate the user's current holding performance
+- Thoroughly evaluate the user's current holding performance and prospects
+- Assess whether the current holding still has strong potential
 - Identify 10-15 alternative cryptocurrencies that match the profile
+- Compare alternatives against the current holding fairly
 - Assess market conditions and trends
 - Provide quantitative scores (1-10) for growth potential
 - Provide qualitative scores (1-10) for risk assessment
+- Consider both holding the current coin and exploring alternatives
 
 REQUIRED JSON OUTPUT FORMAT:
 {
@@ -152,7 +155,11 @@ DECISION PROCESS:
 - Review the comprehensive market analysis provided
 - Compare user's current holding against alternatives
 - Consider market conditions and risk factors
+- If a previous recommendation exists, evaluate its performance and whether to continue or change
 - Make a clear decision: hold current position or swap to better alternative
+- Consider both continuing current holdings and exploring new opportunities
+- When previous recommendation was to hold the same coin, evaluate if conditions have changed
+- Factor in the timing and performance of any previous recommendations
 
 REQUIRED JSON FORMAT:
 {
@@ -185,14 +192,15 @@ EXAMPLES:
 Current holding: ${userToken}
 ${
     previousRecommendation
-        ? `Previous recommendation: ${JSON.stringify(previousRecommendation)}`
+        ? `Previous recommendation: ${JSON.stringify(previousRecommendation)}
+IMPORTANT: Consider this previous recommendation when making your decision. If the previous recommendation was successful or still valid, you may choose to continue holding the current coin.`
         : "No previous recommendation"
 }
 
 Market Analysis Data:
 ${JSON.stringify(analysisResult, null, 2)}
 
-Based on this analysis, make your investment decision. Consider the scores, market conditions, and risk factors.
+Based on this analysis and any previous recommendation context, make your investment decision. Consider the scores, market conditions, risk factors, and the performance/validity of any previous recommendations.
 
 RESPOND WITH ONLY THE JSON OBJECT:`,
                 },
