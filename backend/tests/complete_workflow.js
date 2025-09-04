@@ -690,6 +690,74 @@ async function runCompleteWorkflowWithUpdates(
     }
 }
 
+// Helper function to save recommendation to database
+async function saveRecommendationToDatabase(
+    workflowResult,
+    strategyData,
+    userData
+) {
+    try {
+        const Recommendation = require("../models/Recommendation");
+
+        if (!workflowResult.success || !workflowResult.recommendation) {
+            console.log(
+                "⏭️ Skipping recommendation save - workflow failed or no recommendation"
+            );
+            return null;
+        }
+
+        const finalRecommendation = workflowResult.recommendation;
+
+        // Determine action from recommendation text
+        const action = finalRecommendation.recommendation
+            .toLowerCase()
+            .includes("don't swap")
+            ? "HOLD"
+            : finalRecommendation.recommendation.toLowerCase().includes("swap")
+            ? "SWAP"
+            : "HOLD";
+
+        // Deactivate any existing recommendations for this strategy
+        await Recommendation.updateMany(
+            { strategy: strategyData._id, isActive: true },
+            { isActive: false }
+        );
+
+        // Create new recommendation
+        const newRecommendation = new Recommendation({
+            strategy: strategyData._id,
+            user: userData._id,
+            recommendation: finalRecommendation.recommendation,
+            action: action,
+            confidence: 85, // Could be extracted from analysis
+            explanation: finalRecommendation.explanation,
+            executionTime: workflowResult.totalTime,
+            agentsUsed: workflowResult.agentsUsed.length,
+            analysisData: {
+                profile: workflowResult.profile,
+                candidates: workflowResult.candidates,
+                quantitativeAnalysis: workflowResult.analysis,
+                qualitativeAnalysis: workflowResult.finalAnalysis,
+                totalTime: workflowResult.totalTime,
+                agentsExecuted: workflowResult.agentsUsed,
+            },
+            status: "pending",
+            isActive: true,
+        });
+
+        const savedRecommendation = await newRecommendation.save();
+        console.log(
+            "💾 Recommendation saved to database:",
+            savedRecommendation._id
+        );
+
+        return savedRecommendation;
+    } catch (error) {
+        console.error("❌ Error saving recommendation to database:", error);
+        return null;
+    }
+}
+
 // Main execution
 if (require.main === module) {
     runWorkflowTests().catch(console.error);
@@ -699,4 +767,5 @@ module.exports = {
     runCompleteWorkflow,
     runWorkflowTests,
     runCompleteWorkflowWithUpdates,
+    saveRecommendationToDatabase,
 };

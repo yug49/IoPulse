@@ -8,9 +8,11 @@ import {
     Trash2,
 } from "lucide-react";
 import { strategyAPI } from "../services/api";
+import ConfirmationModal from "./ConfirmationModal";
 
 const StrategyCard = ({ strategy, onUpdate, onCardClick }) => {
     const [isEditing, setIsEditing] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [editData, setEditData] = useState({
         title: strategy.title,
         description: strategy.description,
@@ -37,16 +39,15 @@ const StrategyCard = ({ strategy, onUpdate, onCardClick }) => {
     };
 
     const handleDelete = async () => {
-        if (window.confirm("Are you sure you want to delete this strategy?")) {
-            try {
-                setLoading(true);
-                await strategyAPI.deleteStrategy(strategy._id);
-                onUpdate();
-            } catch (error) {
-                console.error("Delete strategy error:", error);
-            } finally {
-                setLoading(false);
-            }
+        try {
+            setLoading(true);
+            await strategyAPI.deleteStrategy(strategy._id);
+            onUpdate();
+        } catch (error) {
+            console.error("Delete strategy error:", error);
+        } finally {
+            setLoading(false);
+            setShowDeleteConfirm(false);
         }
     };
 
@@ -147,7 +148,7 @@ const StrategyCard = ({ strategy, onUpdate, onCardClick }) => {
                         <Edit2 size={14} />
                     </button>
                     <button
-                        onClick={handleDelete}
+                        onClick={() => setShowDeleteConfirm(true)}
                         disabled={loading}
                         style={{
                             background: "none",
@@ -353,6 +354,19 @@ const StrategyCard = ({ strategy, onUpdate, onCardClick }) => {
                     </button>
                 </div>
             )}
+
+            {/* Delete Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={showDeleteConfirm}
+                onClose={() => setShowDeleteConfirm(false)}
+                onConfirm={handleDelete}
+                title="Delete Strategy"
+                message={`Are you sure you want to delete "${strategy.title}"? This action cannot be undone and will remove all associated data including recommendations and notifications.`}
+                confirmText="Delete"
+                cancelText="Cancel"
+                loading={loading}
+                type="danger"
+            />
         </div>
     );
 };

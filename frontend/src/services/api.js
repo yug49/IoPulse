@@ -211,4 +211,68 @@ export const aiRecommendationAPI = {
     },
 };
 
+// Recommendations API functions
+export const recommendationAPI = {
+    getAllRecommendations: async (status = null) => {
+        try {
+            const params = status ? { status } : {};
+            const response = await api.get("/recommendations", { params });
+            return response.data;
+        } catch (error) {
+            console.error("Get recommendations error:", error);
+            if (error.response?.status === 401) {
+                throw new Error("Authentication failed - please log in again");
+            }
+            throw error.response?.data || { message: "Network error" };
+        }
+    },
+
+    getRecommendationForStrategy: async (strategyId) => {
+        try {
+            const response = await api.get(`/recommendations/${strategyId}`);
+            return response.data;
+        } catch (error) {
+            console.error("Get strategy recommendation error:", error);
+            if (error.response?.status === 401) {
+                throw new Error("Authentication failed - please log in again");
+            }
+            throw error.response?.data || { message: "Network error" };
+        }
+    },
+
+    respondToRecommendation: async (recommendationId, response, notes = "") => {
+        try {
+            const res = await api.post(
+                `/recommendations/${recommendationId}/respond`,
+                {
+                    response, // 'accepted' or 'rejected'
+                    notes,
+                }
+            );
+            return res.data;
+        } catch (error) {
+            console.error("Respond to recommendation error:", error);
+            if (error.response?.status === 401) {
+                throw new Error("Authentication failed - please log in again");
+            }
+            throw error.response?.data || { message: "Network error" };
+        }
+    },
+
+    deleteRecommendation: async (recommendationId) => {
+        try {
+            const response = await api.delete(
+                `/recommendations/${recommendationId}`
+            );
+            return response.data;
+        } catch (error) {
+            console.error("Delete recommendation error:", error);
+            if (error.response?.status === 401) {
+                throw new Error("Authentication failed - please log in again");
+            }
+            throw error.response?.data || { message: "Network error" };
+        }
+    },
+};
+
 export default api;

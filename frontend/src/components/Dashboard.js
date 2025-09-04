@@ -4,20 +4,24 @@ import StrategyDetailView from "./StrategyDetailView";
 import NotificationCard from "./NotificationCard";
 import CreateStrategyModal from "./CreateStrategyModal";
 import NotificationModal from "./NotificationModal";
-import { strategyAPI } from "../services/api";
+import RecommendationModal from "./RecommendationModal";
+import { strategyAPI, recommendationAPI } from "../services/api";
 import { Plus, LogOut } from "lucide-react";
 
 const Dashboard = ({ user, onLogout }) => {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [selectedNotification, setSelectedNotification] = useState(null);
+    const [selectedRecommendation, setSelectedRecommendation] = useState(null);
     const [selectedStrategy, setSelectedStrategy] = useState(null);
     const [strategies, setStrategies] = useState([]);
+    const [recommendations, setRecommendations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
-    // Load strategies from MongoDB
+    // Load strategies and recommendations from MongoDB
     useEffect(() => {
         loadStrategies();
+        loadRecommendations();
     }, []);
 
     const loadStrategies = async () => {
@@ -32,6 +36,21 @@ const Dashboard = ({ user, onLogout }) => {
             console.error("Load strategies error:", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadRecommendations = async () => {
+        try {
+            const response = await recommendationAPI.getAllRecommendations(
+                "pending"
+            );
+            if (response.success) {
+                setRecommendations(response.data);
+                console.log("📋 Loaded recommendations:", response.data);
+            }
+        } catch (error) {
+            console.error("Load recommendations error:", error);
+            // Don't show error for recommendations - they might not exist yet
         }
     };
 
@@ -56,6 +75,16 @@ const Dashboard = ({ user, onLogout }) => {
             )
         );
         setSelectedNotification(null);
+    };
+
+    const handleRecommendationResponse = async (action) => {
+        // Reload recommendations to reflect the changes
+        await loadRecommendations();
+        // Optionally reload strategies if strategy was updated
+        if (action === "obeyed") {
+            await loadStrategies();
+        }
+        setSelectedRecommendation(null);
     };
 
     const handleStrategyCardClick = (strategy) => {
@@ -150,9 +179,9 @@ const Dashboard = ({ user, onLogout }) => {
                 <div className="notifications-header">
                     <h2>AI Recommendations</h2>
                 </div>
-                {pendingNotifications.map((notification) => (
+                {recommendations.map((recommendation) => (
                     <div
-                        key={`${notification.strategyId}-${notification.timestamp}`}
+                        key={recommendation._id}
                         className="notification-item"
                         style={{
                             backgroundColor: "#374151",
@@ -163,10 +192,7 @@ const Dashboard = ({ user, onLogout }) => {
                             cursor: "pointer",
                         }}
                         onClick={() =>
-                            setSelectedNotification({
-                                ...notification,
-                                strategyId: notification.strategyId,
-                            })
+                            setSelectedRecommendation(recommendation)
                         }
                     >
                         <div
@@ -183,8 +209,8 @@ const Dashboard = ({ user, onLogout }) => {
                                         marginBottom: "8px",
                                     }}
                                 >
-                                    {notification.strategyTitle} -{" "}
-                                    {notification.coin}
+                                    {recommendation.strategy.title} -{" "}
+                                    {recommendation.strategy.coin}
                                 </h4>
                                 <p
                                     style={{
@@ -192,7 +218,12 @@ const Dashboard = ({ user, onLogout }) => {
                                         marginBottom: "8px",
                                     }}
                                 >
-                                    {notification.message}
+                                    {recommendation.explanation.length > 100
+                                        ? `${recommendation.explanation.substring(
+                                              0,
+                                              100
+                                          )}...`
+                                        : recommendation.explanation}
                                 </p>
                                 <div
                                     style={{
@@ -204,10 +235,9 @@ const Dashboard = ({ user, onLogout }) => {
                                     <span
                                         style={{
                                             color:
-                                                notification.recommendation ===
-                                                "buy"
+                                                recommendation.action === "buy"
                                                     ? "#10b981"
-                                                    : notification.recommendation ===
+                                                    : recommendation.action ===
                                                       "sell"
                                                     ? "#ef4444"
                                                     : "#f59e0b",
@@ -215,13 +245,12 @@ const Dashboard = ({ user, onLogout }) => {
                                     >
                                         Recommendation:{" "}
                                         {(
-                                            notification.recommendation ||
-                                            "unknown"
+                                            recommendation.action || "unknown"
                                         ).toUpperCase()}
                                     </span>
                                     <span style={{ color: "#9ca3af" }}>
                                         Confidence:{" "}
-                                        {notification.confidence || 0}%
+                                        {recommendation.confidence || 0}%
                                     </span>
                                 </div>
                             </div>
@@ -229,7 +258,7 @@ const Dashboard = ({ user, onLogout }) => {
                                 style={{ color: "#9ca3af", fontSize: "12px" }}
                             >
                                 {new Date(
-                                    notification.timestamp
+                                    recommendation.createdAt
                                 ).toLocaleString()}
                             </span>
                         </div>
@@ -311,6 +340,14 @@ const Dashboard = ({ user, onLogout }) => {
                     strategyId={selectedNotification.strategyId}
                     onClose={() => setSelectedNotification(null)}
                     onResponse={handleNotificationResponse}
+                />
+            )}
+
+            {selectedRecommendation && (
+                <RecommendationModal
+                    recommendation={selectedRecommendation}
+                    onClose={() => setSelectedRecommendation(null)}
+                    onResponse={handleRecommendationResponse}
                 />
             )}
         </div>

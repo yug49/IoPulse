@@ -25,24 +25,31 @@ CRITICAL - RESPOND WITH ONLY JSON:
 - NO markdown formatting or code blocks
 - NO text before or after the JSON
 - Start your response with { and end with }
+- Do not include any reasoning or thinking process in your response
+- ONLY return the JSON object
 
-ANALYSIS STEPS (internal thought only):
+ANALYSIS STEPS (think internally but do not output):
 1. Consider the user's current holding performance vs alternatives.
 2. If a previous recommendation exists, evaluate time elapsed and market changes.
 3. Select the single best action: either maintain current position or swap to a better alternative.
 4. For swaps, select the coin with the best combination of high "quant_score" and high "qualitative_score".
 
-REQUIRED JSON FORMAT (your complete response):
+REQUIRED JSON FORMAT (your complete response - nothing else):
 {
   "recommendation": "Swap [Current Token] for [Selected Token] and hold for [time period]" OR "Don't swap anything and hold [Current Token] for more [time period]",
   "explanation": "Brief explanation of the decision"
 }
 
-RECOMMENDATION FORMAT RULES:
+RECOMMENDATION FORMAT RULES (MUST BE EXACT):
 - For swaps: "Swap ETH for RENDER and hold for 2-4 weeks"
 - For holds: "Don't swap anything and hold ETH for more 1-2 weeks"
 - Always include specific time periods (days/weeks/months)
-- Use exact format shown above`;
+- Use EXACT format shown above - no variations allowed
+- The recommendation field must start with either "Swap" or "Don't swap anything"
+
+EXAMPLE VALID RESPONSES (entire response):
+{"recommendation": "Swap ETH for PEPE and hold for 2-4 weeks", "explanation": "PEPE shows superior combined scores"}
+{"recommendation": "Don't swap anything and hold ETH for more 1-2 weeks", "explanation": "ETH remains competitive"}`;
 
 /**
  * Process final analysis to make investment recommendation using Investment Committee Agent
@@ -119,8 +126,8 @@ async function processInvestmentCommittee(
             },
             {
                 role: "user",
-                content: `Please analyze these fully-scored coins and make the final investment recommendation. 
-                
+                content: `Return ONLY JSON. No explanations.
+
 User's current token: ${userToken}
 ${
     previousRecommendation
@@ -130,11 +137,12 @@ ${
 
 Coin analysis data: ${JSON.stringify(finalAnalysis)}
 
-Focus on coins with both quant_score and qualitative_score. Consider whether the user should HOLD their current position or SWAP to a better alternative. If a previous recommendation exists, factor in the time elapsed and whether conditions have changed.`,
+Return ONLY this JSON format:
+{"recommendation": "Swap [token] for [token] and hold for [period]" or "Don't swap anything and hold [token] for more [period]", "explanation": "brief reason"}`,
             },
         ],
-        temperature: 0.1,
-        max_tokens: 2000,
+        temperature: 0.0, // Reduced for more consistent output
+        max_tokens: 200, // Reduced to encourage concise JSON responses
     };
 
     const headers = {

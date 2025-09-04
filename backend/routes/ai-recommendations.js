@@ -2,13 +2,18 @@ const express = require("express");
 const router = express.Router();
 const Strategy = require("../models/Strategy");
 const User = require("../models/User");
+const Recommendation = require("../models/Recommendation");
 const auth = require("../middleware/auth");
 const jwt = require("jsonwebtoken");
+const {
+    saveRecommendationToDatabase,
+} = require("../utils/recommendationUtils");
 
 // Import the 5-agent workflow
 const {
     runCompleteWorkflow,
     runCompleteWorkflowWithUpdates,
+    saveRecommendationToDatabase: saveRecommendationToDBFromTests,
 } = require("../tests/complete_workflow");
 
 /**
@@ -164,6 +169,14 @@ router.get("/:strategyId/request-stream", async (req, res) => {
 
         // Add the notification to the strategy
         await strategy.addNotification(notificationData);
+        // Save the recommendation to the database (with overwrite logic)
+        await saveRecommendationToDatabase(
+            strategy,
+            finalRecommendation,
+            analysisData,
+            workflowResult.totalTime,
+            workflowResult.agentsUsed.length
+        );
 
         // Send final completion message
         res.write(
